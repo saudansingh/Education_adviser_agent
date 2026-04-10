@@ -41,10 +41,10 @@ def get_livekit_api():
 
 @app.get("/")
 async def root():
-    return {"message": "Priya Voice Agent API", "status": "running"}
+    return {"message": "Ankur Voice Agent API", "status": "running"}
 
 @app.post("/token")
-async def generate_token(room_name: str = "test-room", identity: str = "web-user"):
+async def generate_token(room_name: str = "ankur-room", identity: str = "web-user"):
     """Generate a LiveKit token for frontend connection"""
     try:
         # Generate token with proper claims

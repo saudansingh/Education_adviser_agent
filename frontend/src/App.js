@@ -17,8 +17,8 @@ import './App.css';
 
 const agents = [
   {
-    id: 'priya',
-    name: 'Priya',
+    id: 'ankur',
+    name: 'Ankur',
     title: 'Education Advisor',
     description: 'Specialized in learning strategies and career guidance',
     icon: GraduationCap,
@@ -70,7 +70,7 @@ function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          room_name: 'priya-room',
+          room_name: 'ankur-room',
           identity: 'web-user-' + Math.random().toString(36).substr(2, 9)
         }),
       });
