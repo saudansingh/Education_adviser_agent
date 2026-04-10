@@ -43,6 +43,33 @@ def get_livekit_api():
 async def root():
     return {"message": "Ankur Voice Agent API", "status": "running"}
 
+@app.get("/token")
+async def generate_token_get(room_name: str = "ankur-room", identity: str = "web-user"):
+    """Generate a LiveKit token for frontend connection (GET method for testing)"""
+    try:
+        # Check if environment variables are set
+        if not all([LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET]):
+            raise HTTPException(status_code=500, detail="Missing LiveKit environment variables")
+        
+        # Generate token with proper claims
+        from livekit.api import AccessToken
+        token = AccessToken(
+            api_key=LIVEKIT_API_KEY,
+            api_secret=LIVEKIT_API_SECRET,
+        )
+        token.identity = identity
+        token.name = identity
+        token.add_grant("video", room_name)
+        token.add_grant("audio", room_name)
+        token.add_grant("data", room_name)
+        jwt_token = token.to_jwt()
+        
+        return {"token": jwt_token}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Token generation failed: {str(e)}")
+
 @app.post("/token")
 async def generate_token(request: dict = None):
     """Generate a LiveKit token for frontend connection"""
