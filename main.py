@@ -8,10 +8,10 @@ from datetime import datetime, timedelta
 # Load environment variables
 load_dotenv()
 
-# Get environment variables
+# Get environment variables and clean them
 LIVEKIT_URL = os.getenv("LIVEKIT_URL")
-LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY")
-LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
+LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "").strip().strip('"').strip("'")
+LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "").strip().strip('"').strip("'")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 
@@ -44,9 +44,9 @@ async def generate_token_get(room_name: str = "ankur-room", identity: str = "web
         payload = {
             "iss": LIVEKIT_API_KEY,
             "sub": identity,
-            "nbf": now,
-            "exp": exp,
-            "iat": now,
+            "nbf": int(now.timestamp()),
+            "exp": int(exp.timestamp()),
+            "iat": int(now.timestamp()),
             "jti": f"{identity}-{int(now.timestamp())}",
             "identity": identity,
             "name": identity,
@@ -96,9 +96,9 @@ async def generate_token(request: dict = None):
         payload = {
             "iss": LIVEKIT_API_KEY,
             "sub": identity,
-            "nbf": now,
-            "exp": exp,
-            "iat": now,
+            "nbf": int(now.timestamp()),
+            "exp": int(exp.timestamp()),
+            "iat": int(now.timestamp()),
             "jti": f"{identity}-{int(now.timestamp())}",
             "identity": identity,
             "name": identity,
