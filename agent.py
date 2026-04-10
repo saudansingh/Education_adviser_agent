@@ -4,12 +4,12 @@ from livekit.agents import (
     AgentSession,
     AutoSubscribe,
     JobContext,
-    MultilingualModel,
     RoomInputOptions,
     WorkerOptions,
     cli,
 )
 from livekit.plugins import deepgram, openai, silero
+from livekit.plugins.silero import MultilingualModel
 
 logger = logging.getLogger("agent")
 
