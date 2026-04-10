@@ -37,15 +37,22 @@ async def generate_token_get(room_name: str = "ankur-room", identity: str = "web
         
         # Generate token with proper claims using correct LiveKit API
         from livekit.api import AccessToken
+        from livekit.api import VideoGrants, AudioGrants, DataGrants
+        
+        # Create grants
+        video_grant = VideoGrants(room_join=True, room=room_name)
+        audio_grant = AudioGrants(room_join=True, room=room_name)
+        data_grant = DataGrants(room_join=True, room=room_name)
+        
         token = AccessToken(
             api_key=LIVEKIT_API_KEY,
             api_secret=LIVEKIT_API_SECRET,
+            identity=identity,
+            name=identity,
+            video=video_grant,
+            audio=audio_grant,
+            data=data_grant
         )
-        token.identity = identity
-        token.name = identity
-        
-        # Use the correct method to add grants
-        token.with_grants(video=True, audio=True, data=True, room=room_name)
         
         jwt_token = token.to_jwt()
         
@@ -73,15 +80,22 @@ async def generate_token(request: dict = None):
         
         # Generate token with proper claims using correct LiveKit API
         from livekit.api import AccessToken
+        from livekit.api import VideoGrants, AudioGrants, DataGrants
+        
+        # Create grants
+        video_grant = VideoGrants(room_join=True, room=room_name)
+        audio_grant = AudioGrants(room_join=True, room=room_name)
+        data_grant = DataGrants(room_join=True, room=room_name)
+        
         token = AccessToken(
             api_key=LIVEKIT_API_KEY,
             api_secret=LIVEKIT_API_SECRET,
+            identity=identity,
+            name=identity,
+            video=video_grant,
+            audio=audio_grant,
+            data=data_grant
         )
-        token.identity = identity
-        token.name = identity
-        
-        # Use the correct method to add grants
-        token.with_grants(video=True, audio=True, data=True, room=room_name)
         
         jwt_token = token.to_jwt()
         
