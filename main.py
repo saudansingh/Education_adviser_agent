@@ -56,15 +56,15 @@ async def generate_token(room_name: str = "ankur-room", identity: str = "web-use
         token = AccessToken(
             api_key=LIVEKIT_API_KEY,
             api_secret=LIVEKIT_API_SECRET,
-            identity=identity,
-            name=identity,
-            video={"room_join": True, "room": room_name},
-            audio={"room_join": True, "room": room_name},
-            data={"room_join": True, "room": room_name},
         )
+        token.identity = identity
+        token.name = identity
+        token.add_grant("video", room_name)
+        token.add_grant("audio", room_name)
+        token.add_grant("data", room_name)
         jwt_token = token.to_jwt()
         
-        return {"token": token}
+        return {"token": jwt_token}
     except HTTPException:
         raise
     except Exception as e:
@@ -93,6 +93,21 @@ async def agent_status():
 
 if __name__ == "__main__":
     import uvicorn
+    import threading
+    import asyncio
+    from livekit.agents import cli
+    
+    # Start agent worker in background
+    def start_agent_worker():
+        try:
+            # Run agent worker in the background
+            asyncio.run(cli.cli_entrypoint(["agent", "run", "agent"]))
+        except Exception as e:
+            print(f"Agent worker error: {e}")
+    
+    # Start agent worker thread
+    agent_thread = threading.Thread(target=start_agent_worker, daemon=True)
+    agent_thread.start()
     
     # Run the API server
     uvicorn.run(
