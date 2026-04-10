@@ -2,6 +2,8 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+import jwt
+from datetime import datetime, timedelta
 
 # Load environment variables
 load_dotenv()
@@ -35,26 +37,41 @@ async def generate_token_get(room_name: str = "ankur-room", identity: str = "web
         if not all([LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET]):
             raise HTTPException(status_code=500, detail="Missing LiveKit environment variables")
         
-        # Generate token with proper claims using correct LiveKit API
-        from livekit.api import AccessToken
-        from livekit.api import VideoGrants, AudioGrants, DataGrants
+        # Create JWT token manually with correct LiveKit claims
+        now = datetime.utcnow()
+        exp = now + timedelta(hours=24)
         
-        # Create grants
-        video_grant = VideoGrants(room_join=True, room=room_name)
-        audio_grant = AudioGrants(room_join=True, room=room_name)
-        data_grant = DataGrants(room_join=True, room=room_name)
+        payload = {
+            "iss": LIVEKIT_API_KEY,
+            "sub": identity,
+            "nbf": now,
+            "exp": exp,
+            "iat": now,
+            "jti": f"{identity}-{int(now.timestamp())}",
+            "identity": identity,
+            "name": identity,
+            "metadata": "",
+            "video": {
+                "room": room_name,
+                "roomJoin": True,
+                "canPublish": True,
+                "canSubscribe": True
+            },
+            "audio": {
+                "room": room_name,
+                "roomJoin": True,
+                "canPublish": True,
+                "canSubscribe": True
+            },
+            "data": {
+                "room": room_name,
+                "roomJoin": True,
+                "canPublish": True,
+                "canSubscribe": True
+            }
+        }
         
-        token = AccessToken(
-            api_key=LIVEKIT_API_KEY,
-            api_secret=LIVEKIT_API_SECRET,
-            identity=identity,
-            name=identity,
-            video=video_grant,
-            audio=audio_grant,
-            data=data_grant
-        )
-        
-        jwt_token = token.to_jwt()
+        jwt_token = jwt.encode(payload, LIVEKIT_API_SECRET, algorithm="HS256")
         
         return {"token": jwt_token}
     except HTTPException:
@@ -78,26 +95,41 @@ async def generate_token(request: dict = None):
         if not all([LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET]):
             raise HTTPException(status_code=500, detail="Missing LiveKit environment variables")
         
-        # Generate token with proper claims using correct LiveKit API
-        from livekit.api import AccessToken
-        from livekit.api import VideoGrants, AudioGrants, DataGrants
+        # Create JWT token manually with correct LiveKit claims
+        now = datetime.utcnow()
+        exp = now + timedelta(hours=24)
         
-        # Create grants
-        video_grant = VideoGrants(room_join=True, room=room_name)
-        audio_grant = AudioGrants(room_join=True, room=room_name)
-        data_grant = DataGrants(room_join=True, room=room_name)
+        payload = {
+            "iss": LIVEKIT_API_KEY,
+            "sub": identity,
+            "nbf": now,
+            "exp": exp,
+            "iat": now,
+            "jti": f"{identity}-{int(now.timestamp())}",
+            "identity": identity,
+            "name": identity,
+            "metadata": "",
+            "video": {
+                "room": room_name,
+                "roomJoin": True,
+                "canPublish": True,
+                "canSubscribe": True
+            },
+            "audio": {
+                "room": room_name,
+                "roomJoin": True,
+                "canPublish": True,
+                "canSubscribe": True
+            },
+            "data": {
+                "room": room_name,
+                "roomJoin": True,
+                "canPublish": True,
+                "canSubscribe": True
+            }
+        }
         
-        token = AccessToken(
-            api_key=LIVEKIT_API_KEY,
-            api_secret=LIVEKIT_API_SECRET,
-            identity=identity,
-            name=identity,
-            video=video_grant,
-            audio=audio_grant,
-            data=data_grant
-        )
-        
-        jwt_token = token.to_jwt()
+        jwt_token = jwt.encode(payload, LIVEKIT_API_SECRET, algorithm="HS256")
         
         return {"token": jwt_token}
     except HTTPException:
