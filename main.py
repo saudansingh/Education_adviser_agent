@@ -30,7 +30,14 @@ LIVEKIT_URL = os.getenv("LIVEKIT_URL")
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY")
 LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
 
-livekit_api = LiveKitAPI(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
+# Global variable for API instance
+livekit_api = None
+
+def get_livekit_api():
+    global livekit_api
+    if livekit_api is None:
+        livekit_api = LiveKitAPI(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
+    return livekit_api
 
 @app.get("/")
 async def root():
@@ -41,7 +48,8 @@ async def generate_token(room_name: str = "test-room", identity: str = "web-user
     """Generate a LiveKit token for frontend connection"""
     try:
         # Generate token with proper claims
-        token = livekit_api.auth.create_token(
+        api = get_livekit_api()
+        token = api.auth.create_token(
             identity=identity,
             name=identity,
             room_join=True,
