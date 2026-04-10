@@ -1,0 +1,26 @@
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* LiveKit components styling */
+.lk-video-conference {
+  height: 100%;
+}
+
+.lk-audio-track {
+  background: transparent;
+}
+
+.lk-participant-tile {
+  background: #1e293b;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.lk-control-bar {
+  background: #334155;
+  border-top: 1px solid #475569;
+}
