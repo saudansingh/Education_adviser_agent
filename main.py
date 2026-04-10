@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from livekit.agents import WorkerOptions, cli
-from livekit.agents.job import JobRequest, JobAcceptance
+from livekit.agents.job import JobRequest
 from livekit.api import LiveKitAPI, TokenError
 import jwt
 import time
