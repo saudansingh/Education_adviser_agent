@@ -104,8 +104,6 @@ async def health_check():
 async def agent_status():
     """Check if agent worker is running"""
     try:
-        # Try to connect to agent to see if it's responsive
-        from livekit.agents import cli
         # This is a basic check - in production, agent should be running
         return {"agent_status": "agent_worker_should_be_running", "note": "Check Railway logs for agent worker"}
     except Exception as e:
