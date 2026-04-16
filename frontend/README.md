@@ -1,4 +1,4 @@
-# Voice Agent Frontend - Priya Education Advisor
+# Voice Agent Frontend - Ankur Education Advisor
 
 A modern React frontend for interacting with voice agents, featuring a sleek sidebar interface and real-time voice communication capabilities.
 
@@ -14,7 +14,7 @@ A modern React frontend for interacting with voice agents, featuring a sleek sid
 
 ## Agents Available
 
-1. **Priya - Education Advisor** (Available)
+1. **Ankur - Education Advisor** (Available)
    - Specialized in learning strategies and career guidance
    - Your main education consultant
 
@@ -56,7 +56,7 @@ A modern React frontend for interacting with voice agents, featuring a sleek sid
 
 ### Usage
 
-1. **Select an Agent**: Click on "Priya - Education Advisor" in the sidebar
+1. **Select an Agent**: Click on "Ankur - Education Advisor" in the sidebar
 2. **Connect**: Click the "Connect" button to establish voice connection
 3. **Start Talking**: Use voice or text to communicate with the agent
 4. **Control Audio**: Use mute/unmute button for microphone control
@@ -209,5 +209,5 @@ This project is part of the Voice Agent Workshop. Feel free to modify and use fo
 
 ---
 
-**Happy Learning with Priya!** 
+**Happy Learning with Ankur!** 
 Your AI Education Advisor is ready to help you achieve your educational goals.
