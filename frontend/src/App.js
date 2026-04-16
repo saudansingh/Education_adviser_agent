@@ -59,6 +59,11 @@ function App() {
       setUserEmail(storedEmail);
       setIsLoggedIn(true);
       loadChatHistory(storedToken);
+    } else {
+      // Clear any partial login data
+      localStorage.removeItem('jwtToken');
+      localStorage.removeItem('userEmail');
+      setIsLoggedIn(false);
     }
   }, []);
 
@@ -92,6 +97,14 @@ function App() {
         const data = await response.json();
         setChatHistory(data.sessions || []);
         console.log('Loaded chat history:', data.sessions);
+      } else if (response.status === 401 || response.status === 403) {
+        // Authentication failed, clear localStorage and show login
+        console.error('Authentication failed, clearing session');
+        localStorage.removeItem('jwtToken');
+        localStorage.removeItem('userEmail');
+        setJwtToken('');
+        setUserEmail('');
+        setIsLoggedIn(false);
       }
     } catch (error) {
       console.error('Error loading chat history:', error);
@@ -166,15 +179,22 @@ function App() {
         const data = await response.json();
         setToken(data.token);
         console.log('Generated token from API');
+      } else if (response.status === 401 || response.status === 403 || response.status === 405) {
+        // Authentication failed, clear localStorage and show login
+        console.error('Authentication failed, clearing session');
+        localStorage.removeItem('jwtToken');
+        localStorage.removeItem('userEmail');
+        setJwtToken('');
+        setUserEmail('');
+        setIsLoggedIn(false);
+        alert('Session expired. Please login again.');
       } else {
         console.error('Failed to generate token from API');
-        alert('Failed to generate token. Please login again.');
-        handleLogout();
+        alert('Failed to generate token. Please try again.');
       }
     } catch (error) {
       console.error('Error generating token:', error);
-      alert('Failed to generate token. Please login again.');
-      handleLogout();
+      alert('Failed to generate token. Please try again.');
     }
   };
 
