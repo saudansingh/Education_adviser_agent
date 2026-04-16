@@ -38,6 +38,11 @@ function App() {
   const [inputMessage, setInputMessage] = useState('');
     const [audioTrack, setAudioTrack] = useState(null);
   const [micPermission, setMicPermission] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+  const [jwtToken, setJwtToken] = useState('');
+  const [chatHistory, setChatHistory] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   
   const roomRef = useRef(null);
   const audioElementRef = useRef(null);
@@ -46,9 +51,22 @@ function App() {
   const livekitUrl = process.env.REACT_APP_LIVEKIT_URL || 'wss://voice-agent-u5bk8av6.livekit.cloud';
 
   useEffect(() => {
+    // Check if user is already logged in from localStorage
+    const storedToken = localStorage.getItem('jwtToken');
+    const storedEmail = localStorage.getItem('userEmail');
+    if (storedToken && storedEmail) {
+      setJwtToken(storedToken);
+      setUserEmail(storedEmail);
+      setIsLoggedIn(true);
+      loadChatHistory(storedToken);
+    }
+  }, []);
+
+  useEffect(() => {
     if (selectedAgent) {
       generateToken();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAgent]);
 
   useEffect(() => {
@@ -59,7 +77,75 @@ function App() {
     };
   }, []);
 
+  const loadChatHistory = async (token) => {
+    try {
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_URL}/chat-history`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setChatHistory(data.sessions || []);
+        console.log('Loaded chat history:', data.sessions);
+      }
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+    }
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    try {
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: userEmail }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setJwtToken(data.token);
+        localStorage.setItem('jwtToken', data.token);
+        localStorage.setItem('userEmail', data.email);
+        setIsLoggedIn(true);
+        loadChatHistory(data.token);
+      } else {
+        alert('Login failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error logging in:', error);
+      alert('Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('jwtToken');
+    localStorage.removeItem('userEmail');
+    setJwtToken('');
+    setUserEmail('');
+    setIsLoggedIn(false);
+    setChatHistory([]);
+    setSelectedAgent(null);
+  };
+
   const generateToken = async () => {
+    if (!jwtToken) {
+      console.error('No JWT token available');
+      return;
+    }
+    
     try {
       // Use environment variable for API URL
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
@@ -68,10 +154,11 @@ function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jwtToken}`
         },
         body: JSON.stringify({
           room_name: 'ankur-room',
-          identity: 'web-user-' + Math.random().toString(36).substr(2, 9)
+          identity: `user-${userEmail}`
         }),
       });
       
@@ -81,13 +168,13 @@ function App() {
         console.log('Generated token from API');
       } else {
         console.error('Failed to generate token from API');
-        // Fallback to hardcoded token for development
-        setToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzU4MjE4NjksImlkZW50aXR5Ijoid2ViLXVzZXIiLCJpc3MiOiJBUElKdlZTWXZpN1AyQnEiLCJuYW1lIjoid2ViLXVzZXIiLCJuYmYiOjE3NzU3MzU0NjksInN1YiI6IndlYi11c2VyIiwidmlkZW8iOnsicm9vbSI6InRlc3Qtcm9vbSIsInJvb21Kb2luIjp0cnVlfX0.W7jP833o1Mtr35CJ0GQaQA-uM_0cjmjrdJriwX6M5Cw');
+        alert('Failed to generate token. Please login again.');
+        handleLogout();
       }
     } catch (error) {
       console.error('Error generating token:', error);
-      // Fallback token
-      setToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyIiwiaWF0IjoxNzE0NjQwMDAwLCJuYmYiOjE3MTQ2NDM2MDAsImV4cCI6MTcxNDY0MzYwMH0.mock_signature');
+      alert('Failed to generate token. Please login again.');
+      handleLogout();
     }
   };
 
@@ -184,7 +271,13 @@ function App() {
     }
   };
 
-  const handleDisconnect = () => {
+  const handleDisconnect = async () => {
+    // Save chat summary before disconnecting
+    if (messages.length > 0) {
+      const summary = messages.map(m => `${m.sender}: ${m.text}`).join('\n');
+      await saveChatSummary(summary);
+    }
+    
     if (roomRef.current) {
       roomRef.current.disconnect();
     }
@@ -194,6 +287,32 @@ function App() {
     setMessages([]);
     setAudioTrack(null);
     setIsSpeaking(false);
+  };
+
+  const saveChatSummary = async (summary) => {
+    if (!jwtToken) return;
+    
+    try {
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_URL}/chat-summary`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jwtToken}`
+        },
+        body: JSON.stringify({
+          summary: summary,
+          messages: messages
+        }),
+      });
+      
+      if (response.ok) {
+        console.log('Chat summary saved');
+        loadChatHistory(jwtToken);
+      }
+    } catch (error) {
+      console.error('Error saving chat summary:', error);
+    }
   };
 
   const toggleMute = () => {
@@ -240,6 +359,49 @@ function App() {
       setSelectedAgent(agent);
     }
   };
+
+  // Show login screen if not logged in
+  if (!isLoggedIn) {
+    return (
+      <div className="flex h-screen bg-gradient-to-br from-slate-900 to-slate-800 items-center justify-center">
+        <div className="bg-slate-800 p-8 rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <GraduationCap className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-white mb-2">Ankur Voice Agent</h1>
+            <p className="text-slate-400">Enter your email to start</p>
+          </div>
+          
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
+              <input
+                type="email"
+                value={userEmail}
+                onChange={(e) => setUserEmail(e.target.value)}
+                placeholder="your@email.com"
+                required
+                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            
+            <button
+              type="submit"
+              disabled={isLoading || !userEmail}
+              className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:bg-slate-600 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Connecting...' : 'Start Chat'}
+            </button>
+          </form>
+          
+          <p className="text-xs text-slate-500 text-center mt-4">
+            Your email will be used to save your chat history for future sessions.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-900 to-slate-800">
@@ -298,6 +460,33 @@ function App() {
         </div>
 
         <div className="p-4 border-t border-slate-700">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-2">
+              <User className="w-4 h-4 text-slate-400" />
+              <span className="text-xs text-slate-400">Logged in as:</span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="text-xs text-red-400 hover:text-red-300"
+            >
+              Logout
+            </button>
+          </div>
+          <p className="text-xs text-slate-300 truncate mb-3">{userEmail}</p>
+          
+          {chatHistory.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs text-slate-400 mb-2">Previous Sessions ({chatHistory.length})</p>
+              <div className="max-h-32 overflow-y-auto space-y-1">
+                {chatHistory.slice(0, 3).map((session) => (
+                  <div key={session.id} className="text-xs text-slate-300 p-2 bg-slate-900 rounded truncate">
+                    {session.summary}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
           <div className="flex items-center space-x-2">
             <Settings className="w-4 h-4 text-slate-400" />
             <span className="text-xs text-slate-400">Settings</span>

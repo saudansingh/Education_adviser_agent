@@ -58,6 +58,8 @@ Start conversations with "Hello! I'm Ankur, your education advisor specializing 
         )
 
 async def entrypoint(ctx: JobContext):
+    assistant = Assistant()
+    
     session = AgentSession(
         stt="deepgram/nova-3",
         llm="openai/gpt-4.1-mini",
@@ -65,11 +67,21 @@ async def entrypoint(ctx: JobContext):
     )
     
     await session.start(
-        agent=Assistant(),
+        agent=assistant,
         room=ctx.room,
     )
 
     await ctx.connect()
+    
+    # Extract user context from participant metadata after connecting
+    user_context = ""
+    participant = ctx.room.local_participant
+    if participant and participant.metadata:
+        user_context = f"\n\nUser Information: {participant.metadata}"
+    
+    # Update agent instructions with user context if available
+    if user_context:
+        assistant.instructions += user_context
 
 
 if __name__ == "__main__":
