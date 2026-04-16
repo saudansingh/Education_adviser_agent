@@ -84,15 +84,6 @@ async def get_current_user(authorization: str = Header(...), db: AsyncSession = 
 async def root():
     return {"message": "Ankur Voice Agent API", "status": "running"}
 
-@app.options("/login")
-async def login_options():
-    """Handle CORS preflight request for /login"""
-    from fastapi import Response
-    return Response(
-        status_code=200,
-        headers={"Allow": "OPTIONS, POST"}
-    )
-
 @app.post("/login")
 async def login(request: dict, db: AsyncSession = Depends(get_db)):
     """Login or signup with email"""
@@ -126,15 +117,6 @@ async def login(request: dict, db: AsyncSession = Depends(get_db)):
         "name": user.name
     }
 
-@app.options("/chat-history")
-async def chat_history_options():
-    """Handle CORS preflight request for /chat-history"""
-    from fastapi import Response
-    return Response(
-        status_code=200,
-        headers={"Allow": "OPTIONS, GET"}
-    )
-
 @app.get("/chat-history")
 async def get_chat_history(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Get chat history for current user"""
@@ -157,15 +139,6 @@ async def get_chat_history(current_user: User = Depends(get_current_user), db: A
             for session in sessions
         ]
     }
-
-@app.options("/chat-summary")
-async def chat_summary_options():
-    """Handle CORS preflight request for /chat-summary"""
-    from fastapi import Response
-    return Response(
-        status_code=200,
-        headers={"Allow": "OPTIONS, POST"}
-    )
 
 @app.post("/chat-summary")
 async def save_chat_summary(request: dict, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -190,15 +163,6 @@ async def save_chat_summary(request: dict, current_user: User = Depends(get_curr
         "summary": chat_session.summary,
         "created_at": chat_session.created_at.isoformat()
     }
-
-@app.options("/token")
-async def token_options():
-    """Handle CORS preflight request for /token"""
-    from fastapi import Response
-    return Response(
-        status_code=200,
-        headers={"Allow": "OPTIONS, GET, POST"}
-    )
 
 @app.get("/token")
 async def generate_token_get(room_name: str = "ankur-room", identity: str = "web-user"):
