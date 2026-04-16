@@ -14,3 +14,10 @@ node_modules/
 frontend/build/
 frontend/.env.local
 frontend/.env.production
+*.db
+*.sqlite
+*_backup.py
+*_broken.py
+*_crashed.py
+*_old.py
+*_wrong.py
