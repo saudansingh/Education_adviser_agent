@@ -98,7 +98,9 @@ async def login(request: dict, db: AsyncSession = Depends(get_db)):
     
     # Create user if doesn't exist (signup)
     if not user:
-        user = User(email=email, name=name)
+        # Provide default name if not provided to avoid NOT NULL constraint
+        user_name = name if name else email.split('@')[0]
+        user = User(email=email, name=user_name)
         db.add(user)
         await db.commit()
         await db.refresh(user)
