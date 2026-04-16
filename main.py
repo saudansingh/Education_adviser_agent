@@ -24,7 +24,7 @@ JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-pro
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://ankur-voice-agent-clean-ng919haad-saudansinghs-projects.vercel.app", "*"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
