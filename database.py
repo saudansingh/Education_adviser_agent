@@ -14,6 +14,10 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     print("WARNING: DATABASE_URL not set, using SQLite for local development")
     DATABASE_URL = "sqlite+aiosqlite:///./voice_agent.db"
+else:
+    # Convert postgresql:// to postgresql+asyncpg:// for async SQLAlchemy
+    if DATABASE_URL.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
 # Create async engine
 engine = create_async_engine(DATABASE_URL, echo=True)
