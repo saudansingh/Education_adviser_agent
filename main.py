@@ -87,7 +87,11 @@ async def root():
 @app.options("/login")
 async def login_options():
     """Handle CORS preflight request for /login"""
-    return {"message": "OK"}
+    from fastapi import Response
+    return Response(
+        status_code=200,
+        headers={"Allow": "OPTIONS, POST"}
+    )
 
 @app.post("/login")
 async def login(request: dict, db: AsyncSession = Depends(get_db)):
@@ -125,7 +129,11 @@ async def login(request: dict, db: AsyncSession = Depends(get_db)):
 @app.options("/chat-history")
 async def chat_history_options():
     """Handle CORS preflight request for /chat-history"""
-    return {"message": "OK"}
+    from fastapi import Response
+    return Response(
+        status_code=200,
+        headers={"Allow": "OPTIONS, GET"}
+    )
 
 @app.get("/chat-history")
 async def get_chat_history(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -153,7 +161,11 @@ async def get_chat_history(current_user: User = Depends(get_current_user), db: A
 @app.options("/chat-summary")
 async def chat_summary_options():
     """Handle CORS preflight request for /chat-summary"""
-    return {"message": "OK"}
+    from fastapi import Response
+    return Response(
+        status_code=200,
+        headers={"Allow": "OPTIONS, POST"}
+    )
 
 @app.post("/chat-summary")
 async def save_chat_summary(request: dict, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -182,7 +194,11 @@ async def save_chat_summary(request: dict, current_user: User = Depends(get_curr
 @app.options("/token")
 async def token_options():
     """Handle CORS preflight request for /token"""
-    return {"message": "OK"}
+    from fastapi import Response
+    return Response(
+        status_code=200,
+        headers={"Allow": "OPTIONS, GET, POST"}
+    )
 
 @app.get("/token")
 async def generate_token_get(room_name: str = "ankur-room", identity: str = "web-user"):
