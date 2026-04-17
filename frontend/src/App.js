@@ -43,6 +43,7 @@ function App() {
   const [jwtToken, setJwtToken] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isTokenLoading, setIsTokenLoading] = useState(false);
   
   const roomRef = useRef(null);
   const audioElementRef = useRef(null);
@@ -159,6 +160,8 @@ function App() {
       return;
     }
     
+    setIsTokenLoading(true);
+    
     try {
       // Use environment variable for API URL
       const API_URL = process.env.REACT_APP_API_URL || 'https://educationadviseragent-production.up.railway.app';
@@ -179,6 +182,8 @@ function App() {
         const data = await response.json();
         setToken(data.token);
         console.log('Generated token from API');
+        // Auto-connect after token is generated
+        setTimeout(() => handleConnect(), 500);
       } else if (response.status === 401 || response.status === 403 || response.status === 405) {
         // Authentication failed, clear localStorage and show login
         console.error('Authentication failed, clearing session');
@@ -195,6 +200,8 @@ function App() {
     } catch (error) {
       console.error('Error generating token:', error);
       alert('Failed to generate token. Please try again.');
+    } finally {
+      setIsTokenLoading(false);
     }
   };
 
@@ -542,10 +549,11 @@ function App() {
                   {!isConnected ? (
                     <button
                       onClick={handleConnect}
-                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center space-x-2 transition-colors"
+                      disabled={isTokenLoading || connectionStatus === 'connecting'}
+                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg flex items-center space-x-2 transition-colors"
                     >
                       <Phone className="w-4 h-4" />
-                      <span>Connect</span>
+                      <span>{isTokenLoading ? 'Loading...' : connectionStatus === 'connecting' ? 'Connecting...' : 'Connect'}</span>
                     </button>
                   ) : (
                     <button
