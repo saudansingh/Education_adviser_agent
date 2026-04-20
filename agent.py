@@ -63,7 +63,7 @@ async def entrypoint(ctx: JobContext):
     session = AgentSession(
         stt="deepgram/nova-3",
         llm="openai/gpt-4.1-mini",
-        tts="openai",
+        tts=None,  # Disable TTS temporarily to test
         vad=silero.VAD(),
     )
     
