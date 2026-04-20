@@ -280,17 +280,15 @@ function App() {
         console.log('Room connected, enabling audio');
         // Enable microphone after connecting
         newRoom.localParticipant.setMicrophoneEnabled(true);
+        
+        // Prepare and set participant metadata with chat history after connecting
+        const recentChatHistory = chatHistory.slice(0, 3).map(session => session.summary).join('\n');
+        const metadata = JSON.stringify({
+          email: userEmail,
+          chatHistory: recentChatHistory
+        });
+        newRoom.localParticipant.setMetadata(metadata);
       });
-
-      // Prepare participant metadata with chat history
-      const recentChatHistory = chatHistory.slice(0, 3).map(session => session.summary).join('\n');
-      const metadata = JSON.stringify({
-        email: userEmail,
-        chatHistory: recentChatHistory
-      });
-
-      // Set participant metadata before connecting
-      newRoom.localParticipant.setMetadata(metadata);
 
       // Connect to the room
       await newRoom.connect(livekitUrl, token);
