@@ -61,7 +61,7 @@ async def entrypoint(ctx: JobContext):
     assistant = Assistant()
     
     session = AgentSession(
-        stt="deepgram/nova-3",
+        stt="openai/whisper-1",
         llm="openai/gpt-4.1-mini",
         tts=None,  # Disable TTS temporarily to test
     )
