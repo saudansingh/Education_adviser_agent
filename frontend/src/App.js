@@ -282,6 +282,16 @@ function App() {
         newRoom.localParticipant.setMicrophoneEnabled(true);
       });
 
+      // Prepare participant metadata with chat history
+      const recentChatHistory = chatHistory.slice(0, 3).map(session => session.summary).join('\n');
+      const metadata = JSON.stringify({
+        email: userEmail,
+        chatHistory: recentChatHistory
+      });
+
+      // Set participant metadata before connecting
+      newRoom.localParticipant.setMetadata(metadata);
+
       // Connect to the room
       await newRoom.connect(livekitUrl, token);
       
