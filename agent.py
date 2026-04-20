@@ -63,7 +63,7 @@ async def entrypoint(ctx: JobContext):
     session = AgentSession(
         stt="deepgram/nova-3",
         llm="openai/gpt-4.1-mini",
-        tts=None,  # Disable TTS temporarily to test
+        tts="openai",
     )
     
     await session.start(
