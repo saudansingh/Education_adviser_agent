@@ -17,9 +17,6 @@ logger = logging.getLogger("agent")
 
 load_dotenv(".env.local")
 
-# Semaphore to limit concurrent API calls
-api_semaphore = asyncio.Semaphore(1)  # Only 1 concurrent API call
-
 
 class Assistant(Agent):
     def __init__(self) -> None:
@@ -62,35 +59,33 @@ Start conversations with "Hello! I'm Ankur, your education advisor specializing 
         )
 
 async def entrypoint(ctx: JobContext):
-    # Limit concurrent API calls using semaphore
-    async with api_semaphore:
-        # Add small delay to stagger job processing and reduce API rate limiting
-        await asyncio.sleep(1)
-        
-        assistant = Assistant()
-        
-        session = AgentSession(
-            stt="deepgram/nova-3",
-            llm="openai/gpt-4.1-mini",
-            tts="openai",
-        )
-        
-        await session.start(
-            agent=assistant,
-            room=ctx.room,
-        )
+    # Add delay to reduce API call rate for single user
+    await asyncio.sleep(2)
+    
+    assistant = Assistant()
+    
+    session = AgentSession(
+        stt="deepgram/nova-3",
+        llm="openai/gpt-4.1-mini",
+        tts="openai",
+    )
+    
+    await session.start(
+        agent=assistant,
+        room=ctx.room,
+    )
 
-        await ctx.connect()
-        
-        # Extract user context from participant metadata after connecting
-        user_context = ""
-        participant = ctx.room.local_participant
-        if participant and participant.metadata:
-            user_context = f"\n\nUser Information: {participant.metadata}"
-        
-        # Update agent instructions with user context if available
-        if user_context:
-            assistant.instructions += user_context
+    await ctx.connect()
+    
+    # Extract user context from participant metadata after connecting
+    user_context = ""
+    participant = ctx.room.local_participant
+    if participant and participant.metadata:
+        user_context = f"\n\nUser Information: {participant.metadata}"
+    
+    # Update agent instructions with user context if available
+    if user_context:
+        assistant.instructions += user_context
 
 
 if __name__ == "__main__":
