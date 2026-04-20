@@ -62,27 +62,7 @@ async def entrypoint(ctx: JobContext):
     # Add delay to reduce API call rate for single user
     await asyncio.sleep(2)
     
-    # Extract user context and chat history from participant metadata before starting session
-    user_context = ""
-    chat_context = ""
-    participant = ctx.room.local_participant
-    if participant and participant.metadata:
-        try:
-            import json
-            metadata = json.loads(participant.metadata)
-            user_context = f"\n\nUser Information: {metadata.get('email', 'Unknown')}"
-            if metadata.get('chatHistory'):
-                chat_context = f"\n\nPrevious Chat History:\n{metadata.get('chatHistory')}"
-        except:
-            user_context = f"\n\nUser Information: {participant.metadata}"
-    
     assistant = Assistant()
-    
-    # Update agent instructions with user context and chat history before starting session
-    if user_context:
-        assistant.instructions += user_context
-    if chat_context:
-        assistant.instructions += chat_context
     
     session = AgentSession(
         stt="deepgram/nova-3",
@@ -96,6 +76,26 @@ async def entrypoint(ctx: JobContext):
     )
 
     await ctx.connect()
+    
+    # Extract user context and chat history from participant metadata after connecting
+    user_context = ""
+    chat_context = ""
+    participant = ctx.room.local_participant
+    if participant and participant.metadata:
+        try:
+            import json
+            metadata = json.loads(participant.metadata)
+            user_context = f"\n\nUser Information: {metadata.get('email', 'Unknown')}"
+            if metadata.get('chatHistory'):
+                chat_context = f"\n\nPrevious Chat History:\n{metadata.get('chatHistory')}"
+        except:
+            user_context = f"\n\nUser Information: {participant.metadata}"
+    
+    # Update agent instructions with user context and chat history if available
+    if user_context:
+        assistant.instructions += user_context
+    if chat_context:
+        assistant.instructions += chat_context
 
 
 if __name__ == "__main__":
