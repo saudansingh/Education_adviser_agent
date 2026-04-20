@@ -61,9 +61,10 @@ async def entrypoint(ctx: JobContext):
     assistant = Assistant()
     
     session = AgentSession(
-        stt="openai/whisper-1",
+        stt="deepgram/nova-3",
         llm="openai/gpt-4.1-mini",
         tts="openai",
+        vad=silero.VAD(),
     )
     
     await session.start(
