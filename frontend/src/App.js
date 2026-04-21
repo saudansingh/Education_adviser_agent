@@ -49,7 +49,7 @@ function App() {
   const audioElementRef = useRef(null);
 
   // LiveKit server URL
-  const livekitUrl = process.env.REACT_APP_LIVEKIT_URL || 'wss://voice-agent-u5bk8av6.livekit.cloud';
+  const livekitUrl = process.env.REACT_APP_LIVEKIT_URL || 'wss://voice-agent-tr1nwg9p.osingapore1b.production.livekit.cloud';
 
   useEffect(() => {
     // Check if user is already logged in from localStorage
