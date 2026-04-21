@@ -62,9 +62,9 @@ async def entrypoint(ctx: JobContext):
     assistant = Assistant()
     
     session = AgentSession(
-        stt="deepgram/nova-3",
+        stt="deepgram/nova-2",
         llm="openai/gpt-4o-mini",
-        tts="deepgram",
+        tts=deepgram.TTS(model="aura-orion-en"),
     )
     
     await session.start(
