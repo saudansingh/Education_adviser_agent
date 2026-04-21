@@ -216,11 +216,15 @@ async def generate_token(request: dict = None, current_user: User = Depends(get_
     try:
         # Get parameters from JSON body or use defaults
         if request:
-            room_name = request.get("room_name", "ankur-room")
+            room_name = request.get("room_name")
             identity = request.get("identity", f"user-{current_user.id}")
         else:
-            room_name = "ankur-room"
+            room_name = None
             identity = f"user-{current_user.id}"
+        
+        # Generate unique room name if not provided
+        if not room_name:
+            room_name = f"room-{current_user.id}-{int(datetime.utcnow().timestamp())}"
         
         # Check if environment variables are set
         if not all([LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET]):
@@ -256,7 +260,7 @@ async def generate_token(request: dict = None, current_user: User = Depends(get_
         
         jwt_token = jwt.encode(payload, LIVEKIT_API_SECRET, algorithm="HS256")
         
-        return {"token": jwt_token}
+        return {"token": jwt_token, "room_name": room_name}
     except HTTPException:
         raise
     except Exception as e:

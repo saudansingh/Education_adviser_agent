@@ -173,7 +173,6 @@ function App() {
           'Authorization': `Bearer ${jwtToken}`
         },
         body: JSON.stringify({
-          room_name: 'ankur-room',
           identity: `user-${userEmail}`
         }),
       });
