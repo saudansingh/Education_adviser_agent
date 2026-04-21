@@ -59,9 +59,6 @@ Start conversations with "Hello! I'm Ankur, your education advisor specializing 
         )
 
 async def entrypoint(ctx: JobContext):
-    # Add delay to reduce API call rate for single user
-    await asyncio.sleep(2)
-    
     assistant = Assistant()
     
     session = AgentSession(
