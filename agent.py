@@ -80,6 +80,14 @@ Remember to acknowledge this previous context naturally in your conversation."""
     
     async def on_user_turn_completed(self, user_input: str, new_message=None):
         """Track conversation for summarization"""
+        if hasattr(user_input, 'text'):
+          text = user_input.text
+        elif isinstance(user_input, str):
+          text = user_input
+        else:
+          text = str(user_input)
+
+    
         self.conversation_history.append({"role": "user", "content": user_input})
         logger.info(f"User turn completed: {user_input[:50]}...")
 
