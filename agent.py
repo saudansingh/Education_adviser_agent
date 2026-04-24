@@ -116,15 +116,23 @@ async def entrypoint(ctx: JobContext):
     logger.info(f"Job received for room: {ctx.room.name}")
     
     # Extract user_id from metadata (JSON format from main.py)
-    user_id = None
-    try:
-        metadata = ctx.job.metadata
-        if metadata:
-            metadata_dict = json.loads(metadata) if isinstance(metadata, str) else metadata
-            user_id = metadata_dict.get("user_id")
-            logger.info(f"Extracted user_id from metadata: {user_id}")
-    except Exception as e:
-        logger.warning(f"Could not extract user_id from metadata: {e}")
+   # Extract user_id from metadata (JSON format from main.py)
+user_id = None
+try:
+    metadata = ctx.job.metadata
+    logger.info(f"Raw metadata: {metadata}")
+    logger.info(f"Metadata type: {type(metadata)}")
+    
+    if metadata:
+        metadata_dict = json.loads(metadata) if isinstance(metadata, str) else metadata
+        logger.info(f"Parsed metadata dict: {metadata_dict}")
+        user_id = metadata_dict.get("user_id")
+        logger.info(f"Extracted user_id from metadata: {user_id}")
+    else:
+        logger.warning("Metadata is None or empty")
+except Exception as e:
+    logger.error(f"Could not extract user_id from metadata: {e}")
+    logger.error(f"Metadata was: {ctx.job.metadata}")
     
     # Load memory if user_id is available
     memory_summary = None
