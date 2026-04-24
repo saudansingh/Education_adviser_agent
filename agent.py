@@ -78,7 +78,7 @@ Remember to acknowledge this previous context naturally in your conversation."""
         self.conversation_history = []
         self.user_id = None
     
-    async def on_user_turn_completed(self, user_input: str, new_message=None):
+    async def on_user_turn_completed(self, user_input, new_message=None):
         """Track conversation for summarization"""
         if hasattr(user_input, 'text'):
           text = user_input.text
@@ -88,8 +88,8 @@ Remember to acknowledge this previous context naturally in your conversation."""
           text = str(user_input)
 
     
-        self.conversation_history.append({"role": "user", "content": user_input})
-        logger.info(f"User turn completed: {user_input[:50]}...")
+        self.conversation_history.append({"role": "user", "content": text})
+        logger.info(f"User turn completed: {text[:50]}...")
 
 
 async def summarize_conversation(conversation_text: str) -> str:
