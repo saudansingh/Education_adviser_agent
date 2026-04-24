@@ -48,6 +48,17 @@ class ChatSession(Base):
     
     user = relationship("User", back_populates="chat_sessions")
 
+class SessionSummary(Base):
+    __tablename__ = "session_summaries"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    summary = Column(Text, nullable=False)
+    session_date = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    user = relationship("User")
+
 async def init_db():
     """Initialize database tables"""
     async with engine.begin() as conn:
@@ -60,3 +71,34 @@ async def get_db():
             yield session
         finally:
             await session.close()
+
+
+
+async def load_memory(user_id: int, session: AsyncSession) -> str | None:
+    """Load the latest conversation summary for a user"""
+    try:
+        from sqlalchemy import select, desc
+        result = await session.execute(
+            select(SessionSummary)
+            .where(SessionSummary.user_id == user_id)
+            .order_by(desc(SessionSummary.session_date))
+            .limit(1)
+        )
+        summary = result.scalar_one_or_none()
+        if summary:
+            return summary.summary
+        return None
+    except Exception as e:
+        print(f"Failed to load memory for user {user_id}: {e}")
+        return None
+ 
+async def save_summary(user_id: int, summary: str, session: AsyncSession):
+    """Save a conversation summary for a user"""
+    try:
+        new_summary = SessionSummary(user_id=user_id, summary=summary)
+        session.add(new_summary)
+        await session.commit()
+        print(f"Saved summary for user {user_id}")
+    except Exception as e:
+        await session.rollback()
+        print(f"Failed to save summary for user {user_id}: {e}")
