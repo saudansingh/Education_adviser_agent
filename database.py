@@ -47,6 +47,7 @@ class ChatSession(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     user = relationship("User", back_populates="chat_sessions")
+    
 
 class SessionSummary(Base):
     __tablename__ = "session_summaries"
