@@ -78,7 +78,7 @@ Remember to acknowledge this previous context naturally in your conversation."""
         self.conversation_history = []
         self.user_id = None
     
-    async def on_user_turn_completed(self, user_input: str):
+    async def on_user_turn_completed(self, user_input: str, new_message=None):
         """Track conversation for summarization"""
         self.conversation_history.append({"role": "user", "content": user_input})
         logger.info(f"User turn completed: {user_input[:50]}...")
