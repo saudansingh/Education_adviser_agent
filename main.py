@@ -243,7 +243,7 @@ async def generate_token(request: dict = None, current_user: User = Depends(get_
             "jti": f"{identity}-{int(now.timestamp())}",
             "identity": identity,
             "name": identity,
-            "metadata": f"user_id:{current_user.id},email:{current_user.email}",
+            "metadata": json.dumps({"user_id": current_user.id, "email": current_user.email}),
             "video": {
                 "roomJoin": True,
                 "room": room_name
