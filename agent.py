@@ -136,7 +136,6 @@ async def save_conversation_summary(user_id: int, conversation_history: list):
     except Exception as e:
         print(f"DEBUG: Error in save_conversation_summary: {e}")
 
-
 async def entrypoint(ctx: JobContext):
     logger.info(f"Job received for room: {ctx.room.name}")
     
@@ -206,15 +205,23 @@ async def entrypoint(ctx: JobContext):
     
     print(f"DEBUG: Final agent instructions length: {len(assistant.instructions)}")
     
-    # Register shutdown handler
-    @ctx.add_shutdown_hook
-    async def on_shutdown():
-        print(f"DEBUG: Shutdown hook triggered. user_id={user_id}, history_size={len(assistant.conversation_history)}")
-        await save_conversation_summary(user_id, assistant.conversation_history)
-    
-    # Keep the agent alive
-    await ctx.wait_for_participant()
+    try:
+        # Keep the agent alive until the user leaves
+        await ctx.wait_for_participant()
+    finally:
+        # Save conversation summary when session ends
+        print(f"DEBUG: Session ended. user_id={user_id}, history_size={len(assistant.conversation_history)}")
+        if user_id and assistant.conversation_history:
+            print("DEBUG: Session ended, generating summary...")
+            conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in assistant.conversation_history])
+            summary = await summarize_conversation(conversation_text)
+            async with async_session() as session:
+                await save_summary(user_id, summary, session)
+        else:
+            print(f"DEBUG: Skipping summary save. user_id={user_id}, has_history={bool(assistant.conversation_history)}")
 
 
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+
+
