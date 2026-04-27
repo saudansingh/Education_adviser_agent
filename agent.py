@@ -73,6 +73,9 @@ PREVIOUS CONVERSATION SUMMARY:
 {memory_summary}
 
 Remember to acknowledge this previous context naturally in your conversation."""
+            print(f"DEBUG: Agent initialized with memory summary: {memory_summary[:100] if memory_summary else 'None'}...")
+        else:
+            print(f"DEBUG: Agent initialized WITHOUT memory summary")
         
         super().__init__(instructions=instructions)
         self.conversation_history = []
@@ -89,10 +92,12 @@ Remember to acknowledge this previous context naturally in your conversation."""
         
         self.conversation_history.append({"role": "user", "content": text})
         logger.info(f"User turn completed: {text[:50]}...")
+        print(f"DEBUG: Conversation history size: {len(self.conversation_history)}")
 
 
 async def summarize_conversation(conversation_text: str) -> str:
     """Summarize conversation using GPT-4o-mini"""
+    print(f"DEBUG: summarize_conversation called with {len(conversation_text)} characters")
     try:
         llm = openai.LLM(model="gpt-4o-mini")
         response = await llm.chat([
@@ -105,9 +110,11 @@ async def summarize_conversation(conversation_text: str) -> str:
                 "content": conversation_text
             }
         ])
+        print(f"DEBUG: Summary generated: {response.content[:100]}...")
         return response.content
     except Exception as e:
         logger.error(f"Failed to summarize conversation: {e}")
+        print(f"DEBUG: Failed to summarize conversation: {e}")
         return "Conversation summary unavailable"
 
 
@@ -118,25 +125,33 @@ async def entrypoint(ctx: JobContext):
     user_id = None
     try:
         metadata = ctx.job.metadata
-        logger.info(f"Raw metadata: {metadata}")
-        logger.info(f"Metadata type: {type(metadata)}")
+        print(f"DEBUG: Raw metadata: {metadata}")
+        print(f"DEBUG: Metadata type: {type(metadata)}")
         
         if metadata:
             metadata_dict = json.loads(metadata) if isinstance(metadata, str) else metadata
-            logger.info(f"Parsed metadata dict: {metadata_dict}")
+            print(f"DEBUG: Parsed metadata dict: {metadata_dict}")
             user_id = metadata_dict.get("user_id")
-            logger.info(f"Extracted user_id from metadata: {user_id}")
+            print(f"DEBUG: Extracted user_id: {user_id}, type: {type(user_id)}")
+            # Ensure user_id is an integer
+            if user_id is not None:
+                user_id = int(user_id)
+                print(f"DEBUG: Converted user_id to int: {user_id}")
         else:
-            logger.warning("Metadata is None or empty")
+            print("DEBUG: Metadata is None or empty")
     except Exception as e:
         logger.error(f"Could not extract user_id from metadata: {e}")
-        logger.error(f"Metadata was: {ctx.job.metadata}")
+        print(f"DEBUG: Error extracting user_id: {e}")
     
     # Load memory if user_id is available
     memory_summary = None
     if user_id:
+        print(f"DEBUG: Attempting to load memory for user_id={user_id}")
         async with async_session() as session:
             memory_summary = await load_memory(user_id, session)
+        print(f"DEBUG: Loaded memory_summary: {memory_summary[:100] if memory_summary else 'None'}...")
+    else:
+        print("DEBUG: No user_id available, skipping memory load")
     
     # Create assistant with memory
     assistant = Assistant(memory_summary=memory_summary)
@@ -169,17 +184,25 @@ async def entrypoint(ctx: JobContext):
     if user_context:
         assistant.instructions += user_context
     
+    print(f"DEBUG: Final agent instructions length: {len(assistant.instructions)}")
+    
     try:
         # Keep the agent alive until the user leaves
         await ctx.wait_for_participant()
     finally:
         # Save conversation summary when session ends
+        print(f"DEBUG: Session ended. user_id={user_id}, conversation_history_size={len(assistant.conversation_history)}")
         if user_id and assistant.conversation_history:
+            print("DEBUG: Session ended, generating summary...")
             logger.info("Session ended, generating summary...")
             conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in assistant.conversation_history])
+            print(f"DEBUG: Conversation text length: {len(conversation_text)}")
             summary = await summarize_conversation(conversation_text)
+            print(f"DEBUG: About to save summary for user_id={user_id}")
             async with async_session() as session:
                 await save_summary(user_id, summary, session)
+        else:
+            print(f"DEBUG: Skipping summary save. user_id={user_id}, has_history={bool(assistant.conversation_history)}")
 
 
 if __name__ == "__main__":
