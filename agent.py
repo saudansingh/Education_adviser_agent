@@ -141,26 +141,30 @@ async def entrypoint(ctx: JobContext):
     logger.info(f"Job received for room: {ctx.room.name}")
     
     # Extract user_id from metadata (JSON format from main.py)
-    user_id = None
-    try:
-        metadata = ctx.job.metadata
-        print(f"DEBUG: Raw metadata: {metadata}")
-        print(f"DEBUG: Metadata type: {type(metadata)}")
-        
-        if metadata:
-            metadata_dict = json.loads(metadata) if isinstance(metadata, str) else metadata
-            print(f"DEBUG: Parsed metadata dict: {metadata_dict}")
-            user_id = metadata_dict.get("user_id")
-            print(f"DEBUG: Extracted user_id: {user_id}, type: {type(user_id)}")
-            # Ensure user_id is an integer
-            if user_id is not None:
-                user_id = int(user_id)
-                print(f"DEBUG: Converted user_id to int: {user_id}")
-        else:
-            print("DEBUG: Metadata is None or empty")
-    except Exception as e:
-        logger.error(f"Could not extract user_id from metadata: {e}")
-        print(f"DEBUG: Error extracting user_id: {e}")
+   # Extract user_id from metadata (JSON format from main.py)
+user_id = None
+try:
+    metadata = ctx.job.metadata
+    print(f"DEBUG: Raw metadata repr: {repr(metadata)}")
+    print(f"DEBUG: Metadata type: {type(metadata)}")
+    print(f"DEBUG: Metadata is None: {metadata is None}")
+    print(f"DEBUG: Metadata is empty string: {metadata == ''}")
+    
+    if metadata:
+        metadata_dict = json.loads(metadata) if isinstance(metadata, str) else metadata
+        print(f"DEBUG: Parsed metadata dict: {metadata_dict}")
+        user_id = metadata_dict.get("user_id")
+        print(f"DEBUG: Extracted user_id: {user_id}, type: {type(user_id)}")
+        if user_id is not None:
+            user_id = int(user_id)
+            print(f"DEBUG: Converted user_id to int: {user_id}")
+    else:
+        print("DEBUG: Metadata is None or empty")
+except Exception as e:
+    logger.error(f"Could not extract user_id from metadata: {e}")
+    print(f"DEBUG: Error extracting user_id: {e}")
+    import traceback
+    traceback.print_exc()
     
     # Load memory if user_id is available
     memory_summary = None
