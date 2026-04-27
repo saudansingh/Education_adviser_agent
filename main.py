@@ -167,50 +167,6 @@ async def save_chat_summary(request: dict, current_user: User = Depends(get_curr
         "created_at": chat_session.created_at.isoformat()
     }
 
-@app.get("/token")
-async def generate_token_get(room_name: str = "ankur-room", identity: str = "web-user"):
-    """Generate a LiveKit token for frontend connection (GET method for testing)"""
-    try:
-        # Check if environment variables are set
-        if not all([LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET]):
-            raise HTTPException(status_code=500, detail="Missing LiveKit environment variables")
-        
-        # Create JWT token with correct LiveKit claims format
-        now = datetime.utcnow()
-        exp = now + timedelta(hours=24)
-        
-        payload = {
-            "iss": LIVEKIT_API_KEY,
-            "sub": identity,
-            "nbf": int(now.timestamp()),
-            "exp": int(exp.timestamp()),
-            "iat": int(now.timestamp()),
-            "jti": f"{identity}-{int(now.timestamp())}",
-            "identity": identity,
-            "name": identity,
-            "metadata": "",
-            "video": {
-                "roomJoin": True,
-                "room": room_name
-            },
-            "audio": {
-                "roomJoin": True,
-                "room": room_name
-            },
-            "data": {
-                "roomJoin": True,
-                "room": room_name
-            }
-        }
-        
-        jwt_token = jwt.encode(payload, LIVEKIT_API_SECRET, algorithm="HS256")
-        
-        return {"token": jwt_token}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Token generation failed: {str(e)}")
-
 @app.post("/token")
 async def generate_token(request: dict = None, current_user: User = Depends(get_current_user)):
     """Generate a LiveKit token for frontend connection (requires authentication)"""
