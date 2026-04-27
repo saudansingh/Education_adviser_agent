@@ -47,7 +47,6 @@ class ChatSession(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     user = relationship("User", back_populates="chat_sessions")
-    
 
 class SessionSummary(Base):
     __tablename__ = "session_summaries"
@@ -73,10 +72,9 @@ async def get_db():
         finally:
             await session.close()
 
-
-
 async def load_memory(user_id: int, session: AsyncSession) -> str | None:
     """Load the latest conversation summary for a user"""
+    print(f"DEBUG: load_memory called with user_id={user_id}, type={type(user_id)}")
     try:
         from sqlalchemy import select, desc
         result = await session.execute(
@@ -86,20 +84,25 @@ async def load_memory(user_id: int, session: AsyncSession) -> str | None:
             .limit(1)
         )
         summary = result.scalar_one_or_none()
+        print(f"DEBUG: load_memory result: {summary}")
         if summary:
+            print(f"DEBUG: Returning summary for user {user_id}: {summary[:100]}...")
             return summary.summary
+        print(f"DEBUG: No summary found for user {user_id}")
         return None
     except Exception as e:
-        print(f"Failed to load memory for user {user_id}: {e}")
+        print(f"DEBUG: Failed to load memory for user {user_id}: {e}")
         return None
- 
+
 async def save_summary(user_id: int, summary: str, session: AsyncSession):
     """Save a conversation summary for a user"""
+    print(f"DEBUG: save_summary called with user_id={user_id}, type={type(user_id)}")
+    print(f"DEBUG: Summary content: {summary[:100]}...")
     try:
         new_summary = SessionSummary(user_id=user_id, summary=summary)
         session.add(new_summary)
         await session.commit()
-        print(f"Saved summary for user {user_id}")
+        print(f"DEBUG: Successfully saved summary for user {user_id}")
     except Exception as e:
         await session.rollback()
-        print(f"Failed to save summary for user {user_id}: {e}")
+        print(f"DEBUG: Failed to save summary for user {user_id}: {e}")
