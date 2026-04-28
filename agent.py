@@ -140,14 +140,16 @@ async def save_conversation_summary(user_id: int, conversation_history: list):
 async def entrypoint(ctx: JobContext):
     logger.info(f"Job received for room: {ctx.room.name}")
     
-    # Extract user_id from participant identity (format: user-{user_id})
+    # Connect to room FIRST
+    await ctx.connect()
+    
+    # Extract user_id from participant identity after connecting
     user_id = None
     try:
         participant = ctx.room.local_participant
         if participant and participant.identity:
             identity = participant.identity
             print(f"DEBUG: Participant identity: {identity}")
-            # Identity format is "user-{user_id}"
             if identity.startswith("user-"):
                 user_id = int(identity.replace("user-", ""))
                 print(f"DEBUG: Extracted user_id from identity: {user_id}")
@@ -169,6 +171,14 @@ async def entrypoint(ctx: JobContext):
     assistant = Assistant(memory_summary=memory_summary)
     assistant.user_id = user_id
     
+    # Register participant left callback for summary save
+    @ctx.room.on("participant_left")
+    def on_participant_left(participant):
+        print(f"DEBUG: Participant left: {participant.identity}")
+        # Schedule async save
+        import asyncio
+        asyncio.create_task(save_on_disconnect(user_id, assistant.conversation_history))
+    
     session = AgentSession(
         stt="deepgram/nova-2",
         llm="openai/gpt-4o-mini",
@@ -179,42 +189,28 @@ async def entrypoint(ctx: JobContext):
         agent=assistant,
         room=ctx.room,
     )
+    
+    await ctx.wait_for_participant()
 
-    await ctx.connect()
-    
-    # Extract user context from participant metadata after connecting
-    user_context = ""
-    participant = ctx.room.local_participant
-    if participant and participant.metadata:
-        try:
-            metadata = json.loads(participant.metadata)
-            user_context = f"\n\nUser Information: {metadata.get('email', 'Unknown')}"
-        except:
-            user_context = f"\n\nUser Information: {participant.metadata}"
-    
-    # Update agent instructions with user context if available
-    if user_context:
-        assistant.instructions += user_context
-    
-    print(f"DEBUG: Final agent instructions length: {len(assistant.instructions)}")
+
+async def save_on_disconnect(user_id: int, conversation_history: list):
+    """Separate async function for saving on disconnect"""
+    print(f"DEBUG: save_on_disconnect called. user_id={user_id}, history_size={len(conversation_history)}")
+    if not user_id or not conversation_history:
+        print(f"DEBUG: Skipping save - no user_id or empty history")
+        return
     
     try:
-        # Keep the agent alive until the user leaves
-        await ctx.wait_for_participant()
-    finally:
-        # Save conversation summary when session ends
-        print(f"DEBUG: Session ended. user_id={user_id}, history_size={len(assistant.conversation_history)}")
-        if user_id and assistant.conversation_history:
-            print("DEBUG: Session ended, generating summary...")
-            conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in assistant.conversation_history])
-            summary = await summarize_conversation(conversation_text)
-            async with async_session() as session:
-                await save_summary(user_id, summary, session)
-        else:
-            print(f"DEBUG: Skipping summary save. user_id={user_id}, has_history={bool(assistant.conversation_history)}")
+        conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in conversation_history])
+        print(f"DEBUG: Conversation text length: {len(conversation_text)}")
+        summary = await summarize_conversation(conversation_text)
+        print(f"DEBUG: About to save summary for user_id={user_id}")
+        async with async_session() as session:
+            await save_summary(user_id, summary, session)
+        print(f"DEBUG: Summary save completed")
+    except Exception as e:
+        print(f"DEBUG: Error in save_on_disconnect: {e}")
 
 
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
-
-
