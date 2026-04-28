@@ -167,6 +167,7 @@ async def save_chat_summary(request: dict, current_user: User = Depends(get_curr
         "created_at": chat_session.created_at.isoformat()
     }
 
+
 @app.post("/token")
 async def generate_token(request: dict = None, current_user: User = Depends(get_current_user)):
     """Generate a LiveKit token for frontend connection (requires authentication)"""
@@ -191,6 +192,12 @@ async def generate_token(request: dict = None, current_user: User = Depends(get_
         now = datetime.utcnow()
         exp = now + timedelta(hours=24)
         
+        # DEBUG: Log metadata generation
+        metadata_json = json.dumps({"user_id": current_user.id, "email": current_user.email})
+        print(f"DEBUG: Generating token with metadata: {metadata_json}")
+        print(f"DEBUG: current_user.id: {current_user.id}, type: {type(current_user.id)}")
+        print(f"DEBUG: current_user.email: {current_user.email}")
+        
         payload = {
             "iss": LIVEKIT_API_KEY,
             "sub": identity,
@@ -200,7 +207,7 @@ async def generate_token(request: dict = None, current_user: User = Depends(get_
             "jti": f"{identity}-{int(now.timestamp())}",
             "identity": identity,
             "name": identity,
-            "metadata": json.dumps({"user_id": current_user.id, "email": current_user.email}),
+            "metadata": metadata_json,
             "video": {
                 "roomJoin": True,
                 "room": room_name
@@ -215,6 +222,8 @@ async def generate_token(request: dict = None, current_user: User = Depends(get_
             }
         }
         
+        print(f"DEBUG: Full payload metadata field: {payload['metadata']}")
+        
         jwt_token = jwt.encode(payload, LIVEKIT_API_SECRET, algorithm="HS256")
         
         return {"token": jwt_token, "room_name": room_name}
@@ -222,6 +231,7 @@ async def generate_token(request: dict = None, current_user: User = Depends(get_
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Token generation failed: {str(e)}")
+
 
 @app.get("/health")
 async def health_check():
