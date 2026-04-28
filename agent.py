@@ -81,7 +81,7 @@ Remember to acknowledge this previous context naturally in your conversation."""
         super().__init__(instructions=instructions)
         self.conversation_history = []
         self.user_id = None
-        self.last_user_turn_time = None  # Track last user turn timestamp
+        self.last_user_turn_time = None
     
     async def on_user_turn_completed(self, user_input, new_message=None):
         """Track conversation for summarization"""
@@ -93,7 +93,7 @@ Remember to acknowledge this previous context naturally in your conversation."""
             text = str(user_input)
         
         self.conversation_history.append({"role": "user", "content": text})
-        self.last_user_turn_time = asyncio.get_event_loop().time()  # Track timestamp
+        self.last_user_turn_time = asyncio.get_event_loop().time()
         logger.info(f"User turn completed: {text[:50]}...")
         logger.info(f"Conversation history size: {len(self.conversation_history)}")
 
@@ -120,10 +120,28 @@ async def summarize_conversation(conversation_text: str) -> str:
         return "Conversation summary unavailable"
 
 
+async def save_on_disconnect(user_id: int, conversation_history: list):
+    """Save summary when user disconnects"""
+    logger.info(f"save_on_disconnect called. user_id={user_id}, history_size={len(conversation_history)}")
+    if not user_id or not conversation_history:
+        logger.warning("Skipping save - no user_id or empty history")
+        return
+    
+    try:
+        conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in conversation_history])
+        logger.info(f"Conversation text length: {len(conversation_text)}")
+        summary = await summarize_conversation(conversation_text)
+        async with async_session() as session:
+            await save_summary(user_id, summary, session)
+        logger.info("Summary saved successfully")
+    except Exception as e:
+        logger.error(f"Error in save_on_disconnect: {e}")
+
+
 async def entrypoint(ctx: JobContext):
     logger.info(f"Job received for room: {ctx.room.name}")
     
-    # Extract user_id from room name (format: room-{user_id}-{timestamp})
+    # Extract user_id from room name
     user_id = None
     try:
         room_name = ctx.room.name
@@ -135,7 +153,7 @@ async def entrypoint(ctx: JobContext):
     except Exception as e:
         logger.error(f"Could not extract user_id from room name: {e}")
     
-    # Load memory if user_id is available
+    # Load memory
     memory_summary = None
     if user_id:
         logger.info(f"Attempting to load memory for user_id={user_id}")
@@ -145,7 +163,6 @@ async def entrypoint(ctx: JobContext):
     else:
         logger.warning("No user_id available, skipping memory load")
     
-    # Create assistant with memory
     assistant = Assistant(memory_summary=memory_summary)
     assistant.user_id = user_id
     
@@ -162,36 +179,22 @@ async def entrypoint(ctx: JobContext):
         room=ctx.room,
     )
     
-    try:
-        await ctx.wait_for_participant()
-    finally:
-        # Wait for conversation to complete (2 seconds of inactivity)
-        logger.info("Session ended. Waiting for conversation to complete...")
-        loop = asyncio.get_event_loop()
-        start_wait = loop.time()
-        
-        # Wait until 2 seconds have passed since last user turn
-        while True:
-            if assistant.last_user_turn_time is None:
-                # No user turns, wait 2 seconds from now
-                if loop.time() - start_wait >= 2:
-                    break
-            else:
-                # Wait 2 seconds after last user turn
-                if loop.time() - assistant.last_user_turn_time >= 2:
-                    break
-            await asyncio.sleep(0.5)
-        
-        logger.info(f"Conversation complete. history_size={len(assistant.conversation_history)}")
-        if user_id and assistant.conversation_history:
-            logger.info("Generating summary...")
-            conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in assistant.conversation_history])
-            summary = await summarize_conversation(conversation_text)
-            async with async_session() as session:
-                await save_summary(user_id, summary, session)
-            logger.info("Summary saved successfully")
-        else:
-            logger.warning(f"Skipping summary save. user_id={user_id}, has_history={bool(assistant.conversation_history)}")
+    # Register participant left callback
+    @ctx.room.on("participant_left")
+    def on_participant_left(participant):
+        logger.info(f"Participant left: {participant.identity}")
+        # Schedule async save with delay for conversation to complete
+        asyncio.create_task(save_with_delay(user_id, assistant.conversation_history))
+    
+    # Keep agent running
+    await ctx.wait_for_participant()
+
+
+async def save_with_delay(user_id: int, conversation_history: list):
+    """Wait for conversation to complete, then save"""
+    logger.info("User disconnected. Waiting 2 seconds for conversation to complete...")
+    await asyncio.sleep(2)
+    await save_on_disconnect(user_id, conversation_history)
 
 
 if __name__ == "__main__":
