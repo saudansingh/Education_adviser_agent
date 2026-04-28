@@ -155,6 +155,7 @@ async def entrypoint(ctx: JobContext):
    
 
     await ctx.connect()
+    await asyncio.sleep(0.5)
 
     session = AgentSession(
         stt="deepgram/nova-2",
