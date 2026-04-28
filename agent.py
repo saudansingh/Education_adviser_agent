@@ -1,7 +1,6 @@
 import logging
 import os
 import json
-import asyncio
 from dotenv import load_dotenv
 from livekit.agents import (
     Agent,
@@ -83,7 +82,7 @@ Remember to acknowledge this previous context naturally in your conversation."""
         self.user_id = None
     
     async def on_user_turn_completed(self, user_input, new_message=None):
-        """Track conversation for summarization"""
+        """Track conversation and save summary after each turn"""
         if hasattr(user_input, 'text'):
             text = user_input.text
         elif isinstance(user_input, str):
@@ -94,6 +93,18 @@ Remember to acknowledge this previous context naturally in your conversation."""
         self.conversation_history.append({"role": "user", "content": text})
         logger.info(f"User turn completed: {text[:50]}...")
         logger.info(f"Conversation history size: {len(self.conversation_history)}")
+        
+        # Save summary after each user turn
+        if self.user_id and self.conversation_history:
+            logger.info("Saving summary after user turn...")
+            try:
+                conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in self.conversation_history])
+                summary = await summarize_conversation(conversation_text)
+                async with async_session() as session:
+                    await save_summary(self.user_id, summary, session)
+                logger.info("Summary saved successfully")
+            except Exception as e:
+                logger.error(f"Failed to save summary: {e}")
 
 
 async def summarize_conversation(conversation_text: str) -> str:
@@ -158,22 +169,6 @@ async def entrypoint(ctx: JobContext):
         agent=assistant,
         room=ctx.room,
     )
-    
-    # Register shutdown handler
-    @ctx.on("shutdown")
-    async def on_shutdown():
-        logger.info("Shutdown triggered. Waiting 2 seconds for conversation to complete...")
-        await asyncio.sleep(2)
-        logger.info(f"Shutdown: history_size={len(assistant.conversation_history)}")
-        if user_id and assistant.conversation_history:
-            logger.info("Generating summary...")
-            conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in assistant.conversation_history])
-            summary = await summarize_conversation(conversation_text)
-            async with async_session() as session:
-                await save_summary(user_id, summary, session)
-            logger.info("Summary saved successfully")
-        else:
-            logger.warning(f"Skipping summary save. user_id={user_id}, has_history={bool(assistant.conversation_history)}")
     
     await ctx.wait_for_participant()
 
