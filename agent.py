@@ -104,7 +104,7 @@ class Assistant(Agent):
     async def chat_ctx_updated(self, chat_ctx):
         self.chat_ctx = chat_ctx
 
-   async def save_session_to_db(self):
+    async def save_session_to_db(self):
         # Now we use the stored self.chat_ctx
         if not self.chat_ctx:
             logger.warning("No chat_ctx available to save.")
@@ -115,12 +115,13 @@ class Assistant(Agent):
         if not self.user_id:
             logger.warning("No user_id found, skipping save.")
             return
-        
+            
         # Build the history string
-        conversation_text = "\n".join([f"{msg.role}: {msg.content}" for msg in chat_ctx.messages])
+        # Ensure 'self.chat_ctx.messages' is indented correctly under this method
+        conversation_text = "\n".join([f"{msg.role}: {msg.content}" for msg in self.chat_ctx.messages])
+        
         await upsert_session_summary(self.user_id, conversation_text)
         logger.info(f"Saved full history for user {self.user_id}")
-
 
 async def entrypoint(ctx: JobContext):
     await init_db()
