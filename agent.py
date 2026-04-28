@@ -2,6 +2,7 @@ import logging
 import os
 import json
 from dotenv import load_dotenv
+import openai as openai_sdk
 from livekit.agents import (
     Agent,
     AgentSession,
@@ -108,18 +109,26 @@ Remember to acknowledge this previous context naturally in your conversation."""
 
 
 async def summarize_conversation(conversation_text: str) -> str:
-    """Summarize conversation using GPT-4o-mini"""
+    """Summarize conversation using OpenAI SDK directly"""
     logger.info(f"summarize_conversation called with {len(conversation_text)} characters")
     try:
-        llm = openai.LLM(model="gpt-4o-mini")
-        # Use correct API: llm.chat() takes a single ChatContext object
-        from livekit.agents.llm import ChatContext, ChatMessage
-        chat_ctx = ChatContext()
-        chat_ctx.append(ChatMessage(role="system", content="Summarize the following conversation concisely. Focus on the user's goals, topics discussed, and any action items. Keep it under 200 words."))
-        chat_ctx.append(ChatMessage(role="user", content=conversation_text))
-        response = await llm.chat(chat_ctx)
-        logger.info(f"Summary generated: {response.content[:100]}...")
-        return response.content
+        client = openai_sdk.AsyncOpenAI()
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Summarize the following conversation concisely. Focus on the user's goals, topics discussed, and any action items. Keep it under 200 words."
+                },
+                {
+                    "role": "user",
+                    "content": conversation_text
+                }
+            ]
+        )
+        summary = response.choices[0].message.content
+        logger.info(f"Summary generated: {summary[:100]}...")
+        return summary
     except Exception as e:
         logger.error(f"Failed to summarize conversation: {e}")
         return "Conversation summary unavailable"
