@@ -10,6 +10,7 @@ from livekit.agents import (
     cli,
 )
 from livekit.plugins import deepgram, openai
+from livekit.agents.llm import ChatMessage
 from database import async_session, load_memory, save_summary
 
 # Setup logging
@@ -53,11 +54,10 @@ class Assistant(Agent):
         self.conversation_history = []
         self.user_id = None
     
-    async def on_user_turn_completed(self, user_input, new_message=None):
-        """Captures user input for summarization."""
-        text = user_input.text if hasattr(user_input, 'text') else str(user_input)
-        self.conversation_history.append({"role": "user", "content": text})
-        logger.info(f"Captured turn: {text[:50]}...")
+    def record_message(self, role: str, content: str):
+        if content and content.strip():
+            self.conversation_history.append({"role": role, "content": content})
+            logger.info(f"History recorded: {role} - {content[:50]}...")
 
 async def summarize_conversation(conversation_text: str) -> str:
     """Summarize conversation using GPT-4o-mini."""
@@ -75,7 +75,7 @@ async def summarize_conversation(conversation_text: str) -> str:
 async def entrypoint(ctx: JobContext):
     logger.info(f"Job received for room: {ctx.room.name}")
     
-    # 1. Extract user_id from metadata
+    # 1. Extract user_id from job metadata
     user_id = None
     try:
         metadata_dict = json.loads(ctx.job.metadata) if isinstance(ctx.job.metadata, str) else ctx.job.metadata
@@ -83,7 +83,7 @@ async def entrypoint(ctx: JobContext):
     except Exception as e:
         logger.error(f"Error extracting metadata: {e}")
 
-    # 2. Load memory from DB
+    # 2. Load existing memory
     memory_summary = None
     if user_id:
         async with async_session() as session:
@@ -99,16 +99,21 @@ async def entrypoint(ctx: JobContext):
         llm="openai/gpt-4o-mini",
         tts=deepgram.TTS(model="aura-orion-en"),
     )
-    
+
+    # 5. Robust history tracking via event listener
+    @session.on("conversation_item_added")
+    def on_conversation_item_added(event):
+        if isinstance(event.item, ChatMessage):
+            assistant.record_message(event.item.role, event.item.text_content or "")
+
     await session.start(agent=assistant, room=ctx.room)
     await ctx.connect()
     
-    # 5. Execution and Cleanup
+    # 6. Keep session alive and handle graceful cleanup
     try:
         await ctx.wait_for_participant()
     finally:
-        # Saving happens after user disconnects
-        logger.info(f"Session ending. User: {user_id}, History Count: {len(assistant.conversation_history)}")
+        logger.info(f"Session closing for user {user_id}. History length: {len(assistant.conversation_history)}")
         if user_id and assistant.conversation_history:
             try:
                 history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in assistant.conversation_history])
@@ -116,7 +121,7 @@ async def entrypoint(ctx: JobContext):
                 
                 async with async_session() as db_session:
                     await save_summary(user_id, summary, db_session)
-                logger.info("Summary saved successfully.")
+                logger.info("Summary saved successfully to DB.")
             except Exception as e:
                 logger.error(f"Critical error during summary save: {e}")
 
