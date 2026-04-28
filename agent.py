@@ -148,7 +148,7 @@ async def entrypoint(ctx: JobContext):
         tts=deepgram.TTS(model="aura-orion-en"),
     )
 
-   @ctx.room.on("participant_disconnected")
+    @ctx.room.on("participant_disconnected")
     def on_participant_disconnected(participant):
         asyncio.create_task(assistant.save_session_to_db(session.chat_ctx))
 
