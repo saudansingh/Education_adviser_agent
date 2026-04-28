@@ -94,50 +94,20 @@ class Assistant(Agent):
     def __init__(self, memory_summary: str | None = None) -> None:
         instructions = INSTRUCTIONS
         if memory_summary:
-            instructions = f"""{INSTRUCTIONS}
-
-PREVIOUS CONVERSATION SUMMARY:
-{memory_summary}
-
-Remember to acknowledge this previous context naturally in your conversation."""
-            logger.info(f"Agent initialized with memory summary: {memory_summary[:100]}...")
-        else:
-            logger.info("Agent initialized WITHOUT memory summary")
-
+            instructions = f"{INSTRUCTIONS}\n\nPREVIOUS CONVERSATION SUMMARY:\n{memory_summary}\n\nRemember to acknowledge this context naturally."
+            logger.info("Agent initialized with memory summary")
+        
         super().__init__(instructions=instructions)
-        self.conversation_history = []
         self.user_id = None
 
-    async def on_user_turn_completed(self, chat_ctx, new_message=None):
-        """Track conversation and save to database"""
-        text = None
-        if new_message and hasattr(new_message, 'content'):
-            content = new_message.content
-            if isinstance(content, list):
-                text = " ".join([str(c) if isinstance(c, str) else str(getattr(c, 'text', c)) for c in content])
-            elif isinstance(content, str):
-                text = content
-        elif hasattr(chat_ctx, 'messages') and chat_ctx.messages:
-            for msg in reversed(chat_ctx.messages):
-                if hasattr(msg, 'role') and msg.role == 'user' and hasattr(msg, 'content'):
-                    content = msg.content
-                    if isinstance(content, list):
-                        text = " ".join([str(c) if isinstance(c, str) else str(getattr(c, 'text', c)) for c in content])
-                    elif isinstance(content, str):
-                        text = content
-                    break
-
-        if not text:
-            logger.warning("Could not extract text from user turn, skipping")
+    async def save_session_to_db(self, chat_ctx):
+        if not self.user_id:
             return
-
-        self.conversation_history.append({"role": "user", "content": text})
-        logger.info(f"User turn completed: {text[:50]}...")
-        logger.info(f"Conversation history size: {len(self.conversation_history)}")
-
-        if self.user_id and self.conversation_history:
-            conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in self.conversation_history])
-            await upsert_session_summary(self.user_id, conversation_text)
+        
+        # Build the history string
+        conversation_text = "\n".join([f"{msg.role}: {msg.content}" for msg in chat_ctx.messages])
+        await upsert_session_summary(self.user_id, conversation_text)
+        logger.info(f"Saved full history for user {self.user_id}")
 
 
 async def entrypoint(ctx: JobContext):
@@ -168,6 +138,8 @@ async def entrypoint(ctx: JobContext):
     assistant = Assistant(memory_summary=memory_summary)
     assistant.user_id = user_id
 
+   
+
     await ctx.connect()
 
     session = AgentSession(
@@ -176,11 +148,11 @@ async def entrypoint(ctx: JobContext):
         tts=deepgram.TTS(model="aura-orion-en"),
     )
 
-    await session.start(
-        agent=assistant,
-        room=ctx.room,
-    )
+   @ctx.room.on("participant_disconnected")
+    def on_participant_disconnected(participant):
+        asyncio.create_task(assistant.save_session_to_db(session.chat_ctx))
 
+    await session.start(agent=assistant, room=ctx.room)
     await ctx.wait_for_participant()
 
 
