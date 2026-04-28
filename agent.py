@@ -135,27 +135,22 @@ async def save_conversation_summary(user_id: int, conversation_history: list):
         print(f"DEBUG: Summary save completed")
     except Exception as e:
         print(f"DEBUG: Error in save_conversation_summary: {e}")
-
-
+        
 async def entrypoint(ctx: JobContext):
     logger.info(f"Job received for room: {ctx.room.name}")
     
-    # Connect to room FIRST
-    await ctx.connect()
-    
-    # Extract user_id from participant identity after connecting
+    # Extract user_id from room name (format: room-{user_id}-{timestamp})
     user_id = None
     try:
-        participant = ctx.room.local_participant
-        if participant and participant.identity:
-            identity = participant.identity
-            print(f"DEBUG: Participant identity: {identity}")
-            if identity.startswith("user-"):
-                user_id = int(identity.replace("user-", ""))
-                print(f"DEBUG: Extracted user_id from identity: {user_id}")
+        room_name = ctx.room.name
+        print(f"DEBUG: Room name: {room_name}")
+        parts = room_name.split("-")
+        if len(parts) >= 2 and parts[0] == "room":
+            user_id = int(parts[1])
+            print(f"DEBUG: Extracted user_id from room name: {user_id}")
     except Exception as e:
-        logger.error(f"Could not extract user_id from identity: {e}")
-        print(f"DEBUG: Error extracting user_id from identity: {e}")
+        logger.error(f"Could not extract user_id from room name: {e}")
+        print(f"DEBUG: Error extracting user_id from room name: {e}")
     
     # Load memory if user_id is available
     memory_summary = None
@@ -171,13 +166,7 @@ async def entrypoint(ctx: JobContext):
     assistant = Assistant(memory_summary=memory_summary)
     assistant.user_id = user_id
     
-    # Register participant left callback for summary save
-    @ctx.room.on("participant_left")
-    def on_participant_left(participant):
-        print(f"DEBUG: Participant left: {participant.identity}")
-        # Schedule async save
-        import asyncio
-        asyncio.create_task(save_on_disconnect(user_id, assistant.conversation_history))
+    await ctx.connect()
     
     session = AgentSession(
         stt="deepgram/nova-2",
@@ -190,27 +179,20 @@ async def entrypoint(ctx: JobContext):
         room=ctx.room,
     )
     
-    await ctx.wait_for_participant()
-
-
-async def save_on_disconnect(user_id: int, conversation_history: list):
-    """Separate async function for saving on disconnect"""
-    print(f"DEBUG: save_on_disconnect called. user_id={user_id}, history_size={len(conversation_history)}")
-    if not user_id or not conversation_history:
-        print(f"DEBUG: Skipping save - no user_id or empty history")
-        return
-    
     try:
-        conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in conversation_history])
-        print(f"DEBUG: Conversation text length: {len(conversation_text)}")
-        summary = await summarize_conversation(conversation_text)
-        print(f"DEBUG: About to save summary for user_id={user_id}")
-        async with async_session() as session:
-            await save_summary(user_id, summary, session)
-        print(f"DEBUG: Summary save completed")
-    except Exception as e:
-        print(f"DEBUG: Error in save_on_disconnect: {e}")
+        await ctx.wait_for_participant()
+    finally:
+        print(f"DEBUG: Session ended. user_id={user_id}, history_size={len(assistant.conversation_history)}")
+        if user_id and assistant.conversation_history:
+            print("DEBUG: Session ended, generating summary...")
+            conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in assistant.conversation_history])
+            summary = await summarize_conversation(conversation_text)
+            async with async_session() as session:
+                await save_summary(user_id, summary, session)
+        else:
+            print(f"DEBUG: Skipping summary save. user_id={user_id}, has_history={bool(assistant.conversation_history)}")
 
 
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+
