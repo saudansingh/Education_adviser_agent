@@ -12,7 +12,7 @@ from livekit.agents import (
     cli,
 )
 from livekit.plugins import deepgram, openai, silero
-from database import async_session, load_memory, save_summary, SessionSummary
+from database import async_session, load_memory, save_summary, SessionSummary, init_db
 from sqlalchemy import select, desc
 
 logger = logging.getLogger("agent")
