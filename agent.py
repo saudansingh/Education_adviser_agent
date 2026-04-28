@@ -20,37 +20,19 @@ load_dotenv(".env.local")
 INSTRUCTIONS = """You are Ankur, a knowledgeable and encouraging Education Advisor AI assistant. Your name is Ankur and you specialize in educational guidance, career planning, and learning strategies.
 
 Your Expertise Areas:
-- Educational planning and course selection
-- Study strategies and learning techniques
-- Career guidance and skill development
-- College and university applications
-- Professional development and certifications
-- Online learning and educational resources
-- Academic performance improvement
+- Educational planning, study strategies, career guidance, and skill development.
 
 Your Personality:
-- Encouraging, patient, and motivational
-- Knowledgeable about educational pathways
-- Practical and goal-oriented advice
-- Supportive of diverse learning styles
-- Professional yet approachable demeanor
+- Encouraging, patient, and motivational.
+- Professional yet approachable.
 
-Contextual Memory Guidelines (CRITICAL):
-You will be provided with a 'Conversation Summary' from the user's previous sessions.
-
-Start by acknowledging the past: If a summary is provided, use it to personalize your greeting. For example, 'Hello again! It's great to see you back. Last time we talked about [Topic from Summary], have you made any progress on that?'
-
-Maintain Continuity: Use the previous context to build upon existing goals rather than asking the user to repeat information.
-
-Synthesize: If the user asks a new question, cross-reference it with the previous summary to provide advice that is consistent with their long-term learning journey."""
+Guidelines:
+- Maintain continuity with previous goals.
+- Use the provided 'Conversation Summary' to personalize your guidance."""
 
 class Assistant(Agent):
-    def __init__(self, memory_summary: str | None = None) -> None:
-        instructions = INSTRUCTIONS
-        if memory_summary:
-            instructions = f"{INSTRUCTIONS}\n\nPREVIOUS CONVERSATION SUMMARY:\n{memory_summary}\n\nRemember to acknowledge this previous context naturally."
-        
-        super().__init__(instructions=instructions)
+    def __init__(self) -> None:
+        super().__init__(instructions=INSTRUCTIONS)
         self.conversation_history = []
         self.user_id = None
     
@@ -60,11 +42,11 @@ class Assistant(Agent):
             logger.info(f"History recorded: {role} - {content[:50]}...")
 
 async def summarize_conversation(conversation_text: str) -> str:
-    """Summarize conversation using GPT-4o-mini."""
+    """Summarize conversation concisely for next session's memory."""
     try:
         llm = openai.LLM(model="gpt-4o-mini")
         response = await llm.chat([
-            {"role": "system", "content": "Summarize concisely. Focus on user goals, topics, and action items. Max 200 words."},
+            {"role": "system", "content": "Summarize the user's goals and progress concisely (under 150 words). Focus on what was achieved."},
             {"role": "user", "content": conversation_text}
         ])
         return response.content
@@ -75,7 +57,7 @@ async def summarize_conversation(conversation_text: str) -> str:
 async def entrypoint(ctx: JobContext):
     logger.info(f"Job received for room: {ctx.room.name}")
     
-    # 1. Extract user_id from job metadata
+    # 1. Extract metadata
     user_id = None
     try:
         metadata_dict = json.loads(ctx.job.metadata) if isinstance(ctx.job.metadata, str) else ctx.job.metadata
@@ -83,24 +65,25 @@ async def entrypoint(ctx: JobContext):
     except Exception as e:
         logger.error(f"Error extracting metadata: {e}")
 
-    # 2. Load existing memory
-    memory_summary = None
-    if user_id:
-        async with async_session() as session:
-            memory_summary = await load_memory(user_id, session)
-            
-    # 3. Initialize Assistant
-    assistant = Assistant(memory_summary=memory_summary)
+    # 2. Initialize Assistant
+    assistant = Assistant()
     assistant.user_id = user_id
     
-    # 4. Setup Session
+    # 3. Setup Session
     session = AgentSession(
         stt="deepgram/nova-2",
         llm="openai/gpt-4o-mini",
         tts=deepgram.TTS(model="aura-orion-en"),
     )
 
-    # 5. Robust history tracking via event listener
+    # 4. Inject Memory and setup hooks
+    if user_id:
+        async with async_session() as session_db:
+            memory = await load_memory(user_id, session_db)
+            if memory:
+                # Injecting directly as a system context message
+                await session.chat_ctx.append(ChatMessage(role="system", text=f"PREVIOUS CONVERSATION SUMMARY: {memory}"))
+
     @session.on("conversation_item_added")
     def on_conversation_item_added(event):
         if isinstance(event.item, ChatMessage):
@@ -109,21 +92,17 @@ async def entrypoint(ctx: JobContext):
     await session.start(agent=assistant, room=ctx.room)
     await ctx.connect()
     
-    # 6. Keep session alive and handle graceful cleanup
+    # 5. Wait and Cleanup
     try:
         await ctx.wait_for_participant()
     finally:
-        logger.info(f"Session closing for user {user_id}. History length: {len(assistant.conversation_history)}")
+        logger.info(f"Session ending. User: {user_id}, History: {len(assistant.conversation_history)}")
         if user_id and assistant.conversation_history:
-            try:
-                history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in assistant.conversation_history])
-                summary = await summarize_conversation(history_text)
-                
-                async with async_session() as db_session:
-                    await save_summary(user_id, summary, db_session)
-                logger.info("Summary saved successfully to DB.")
-            except Exception as e:
-                logger.error(f"Critical error during summary save: {e}")
+            history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in assistant.conversation_history])
+            summary = await summarize_conversation(history_text)
+            async with async_session() as db_session:
+                await save_summary(user_id, summary, db_session)
+            logger.info("Summary saved successfully.")
 
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
