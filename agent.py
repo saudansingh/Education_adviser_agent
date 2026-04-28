@@ -13,6 +13,8 @@ from livekit.agents import (
 )
 from livekit.plugins import deepgram, openai, silero
 from database import async_session, load_memory, save_summary
+from sqlalchemy import select, desc
+from database import SessionSummary
 
 logger = logging.getLogger("agent")
 
@@ -64,6 +66,34 @@ Your Approach:
 If no summary is available, start with: 'Hello! I'm Ankur, your education advisor specializing in learning strategies and career guidance. How can I help you achieve your educational goals today?'"""
 
 
+async def upsert_session_summary(user_id: int, conversation_text: str):
+    """Update existing session summary or create new one for current session"""
+    try:
+        async with async_session() as session:
+            # Find the most recent summary for this user (current session)
+            result = await session.execute(
+                select(SessionSummary)
+                .where(SessionSummary.user_id == user_id)
+                .order_by(desc(SessionSummary.created_at))
+                .limit(1)
+            )
+            existing = result.scalar_one_or_none()
+            
+            if existing:
+                # Update existing row
+                existing.summary = conversation_text
+                await session.commit()
+                logger.info(f"Updated session summary for user {user_id}")
+            else:
+                # Create new row
+                new_summary = SessionSummary(user_id=user_id, summary=conversation_text)
+                session.add(new_summary)
+                await session.commit()
+                logger.info(f"Created session summary for user {user_id}")
+    except Exception as e:
+        logger.error(f"Failed to upsert session summary: {e}")
+
+
 class Assistant(Agent):
     def __init__(self, memory_summary: str | None = None) -> None:
         instructions = INSTRUCTIONS
@@ -83,7 +113,7 @@ Remember to acknowledge this previous context naturally in your conversation."""
         self.user_id = None
     
     async def on_user_turn_completed(self, user_input, new_message=None):
-        """Track conversation for summarization"""
+        """Track conversation and save to database"""
         if hasattr(user_input, 'text'):
             text = user_input.text
         elif isinstance(user_input, str):
@@ -94,33 +124,11 @@ Remember to acknowledge this previous context naturally in your conversation."""
         self.conversation_history.append({"role": "user", "content": text})
         logger.info(f"User turn completed: {text[:50]}...")
         logger.info(f"Conversation history size: {len(self.conversation_history)}")
-
-
-async def summarize_conversation(conversation_text: str) -> str:
-    """Summarize conversation using OpenAI SDK"""
-    logger.info(f"summarize_conversation called with {len(conversation_text)} characters")
-    try:
-        import openai
-        client = openai.AsyncOpenAI()  # Uses OPENAI_API_KEY from env automatically
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Summarize the following conversation concisely. Focus on the user's goals, topics discussed, and any action items. Keep it under 200 words."
-                },
-                {
-                    "role": "user",
-                    "content": conversation_text
-                }
-            ]
-        )
-        summary = response.choices[0].message.content
-        logger.info(f"Summary generated: {summary[:100]}...")
-        return summary
-    except Exception as e:
-        logger.error(f"Failed to summarize conversation: {e}")
-        return conversation_text[:500]
+        
+        # Save raw conversation text to database (no LLM call needed)
+        if self.user_id and self.conversation_history:
+            conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in self.conversation_history])
+            await upsert_session_summary(self.user_id, conversation_text)
 
 
 async def entrypoint(ctx: JobContext):
@@ -164,22 +172,7 @@ async def entrypoint(ctx: JobContext):
         room=ctx.room,
     )
     
-    # Wait for participant to actually disconnect (not wait_for_participant which returns on JOIN)
-    logger.info("Agent running. Waiting for participant to disconnect...")
-    while ctx.room.remote_participants:
-        await asyncio.sleep(1)
-    
-    # Participant disconnected - save summary NOW
-    logger.info(f"Participant disconnected. Saving summary. history_size={len(assistant.conversation_history)}")
-    if user_id and assistant.conversation_history:
-        logger.info("Generating summary...")
-        conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in assistant.conversation_history])
-        summary = await summarize_conversation(conversation_text)
-        async with async_session() as session:
-            await save_summary(user_id, summary, session)
-        logger.info("Summary saved successfully")
-    else:
-        logger.warning(f"Skipping summary save. user_id={user_id}, has_history={bool(assistant.conversation_history)}")
+    await ctx.wait_for_participant()
 
 
 if __name__ == "__main__":
