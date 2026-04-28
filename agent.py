@@ -1,8 +1,8 @@
 import logging
 import os
 import json
+import asyncio
 from dotenv import load_dotenv
-import openai as openai_sdk
 from livekit.agents import (
     Agent,
     AgentSession,
@@ -74,7 +74,7 @@ PREVIOUS CONVERSATION SUMMARY:
 {memory_summary}
 
 Remember to acknowledge this previous context naturally in your conversation."""
-            logger.info(f"Agent initialized with memory summary: {memory_summary[:100] if memory_summary else 'None'}...")
+            logger.info(f"Agent initialized with memory summary: {memory_summary[:100]}...")
         else:
             logger.info("Agent initialized WITHOUT memory summary")
         
@@ -83,7 +83,7 @@ Remember to acknowledge this previous context naturally in your conversation."""
         self.user_id = None
     
     async def on_user_turn_completed(self, user_input, new_message=None):
-        """Track conversation and save summary after each turn"""
+        """Track conversation for summarization"""
         if hasattr(user_input, 'text'):
             text = user_input.text
         elif isinstance(user_input, str):
@@ -94,25 +94,14 @@ Remember to acknowledge this previous context naturally in your conversation."""
         self.conversation_history.append({"role": "user", "content": text})
         logger.info(f"User turn completed: {text[:50]}...")
         logger.info(f"Conversation history size: {len(self.conversation_history)}")
-        
-        # Save summary after each user turn
-        if self.user_id and self.conversation_history:
-            logger.info("Saving summary after user turn...")
-            try:
-                conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in self.conversation_history])
-                summary = await summarize_conversation(conversation_text)
-                async with async_session() as session:
-                    await save_summary(self.user_id, summary, session)
-                logger.info("Summary saved successfully")
-            except Exception as e:
-                logger.error(f"Failed to save summary: {e}")
 
 
 async def summarize_conversation(conversation_text: str) -> str:
-    """Summarize conversation using OpenAI SDK directly"""
+    """Summarize conversation using OpenAI SDK"""
     logger.info(f"summarize_conversation called with {len(conversation_text)} characters")
     try:
-        client = openai_sdk.AsyncOpenAI()
+        import openai
+        client = openai.AsyncOpenAI()  # Uses OPENAI_API_KEY from env automatically
         response = await client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -131,7 +120,7 @@ async def summarize_conversation(conversation_text: str) -> str:
         return summary
     except Exception as e:
         logger.error(f"Failed to summarize conversation: {e}")
-        return "Conversation summary unavailable"
+        return conversation_text[:500]
 
 
 async def entrypoint(ctx: JobContext):
@@ -175,7 +164,22 @@ async def entrypoint(ctx: JobContext):
         room=ctx.room,
     )
     
-    await ctx.wait_for_participant()
+    # Wait for participant to actually disconnect (not wait_for_participant which returns on JOIN)
+    logger.info("Agent running. Waiting for participant to disconnect...")
+    while ctx.room.remote_participants:
+        await asyncio.sleep(1)
+    
+    # Participant disconnected - save summary NOW
+    logger.info(f"Participant disconnected. Saving summary. history_size={len(assistant.conversation_history)}")
+    if user_id and assistant.conversation_history:
+        logger.info("Generating summary...")
+        conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in assistant.conversation_history])
+        summary = await summarize_conversation(conversation_text)
+        async with async_session() as session:
+            await save_summary(user_id, summary, session)
+        logger.info("Summary saved successfully")
+    else:
+        logger.warning(f"Skipping summary save. user_id={user_id}, has_history={bool(assistant.conversation_history)}")
 
 
 if __name__ == "__main__":
