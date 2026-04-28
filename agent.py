@@ -12,9 +12,8 @@ from livekit.agents import (
     cli,
 )
 from livekit.plugins import deepgram, openai, silero
-from database import async_session, load_memory, save_summary
+from database import async_session, load_memory, save_summary, SessionSummary
 from sqlalchemy import select, desc
-from database import SessionSummary
 
 logger = logging.getLogger("agent")
 
@@ -69,7 +68,7 @@ If no summary is available, start with: 'Hello! I'm Ankur, your education adviso
 async def upsert_session_summary(user_id: int, conversation_text: str):
     """Update existing session summary or create new one for current session"""
     try:
-        async with session_scope() as session:
+        async with async_session() as session:
             result = await session.execute(
                 select(SessionSummary)
                 .where(SessionSummary.user_id == user_id)
