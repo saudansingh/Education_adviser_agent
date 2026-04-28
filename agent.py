@@ -113,6 +113,7 @@ class Assistant(Agent):
 
 
 async def entrypoint(ctx: JobContext):
+    await init_db()
     logger.info(f"Job received for room: {ctx.room.name}")
 
     # Extract user_id from room name
@@ -157,7 +158,7 @@ async def entrypoint(ctx: JobContext):
 
     await session.start(agent=assistant, room=ctx.room)
     await ctx.wait_for_participant()
-    @ctx.room.on("disconnected")
+    
     def on_room_disconnected():
         logger.info("Room disconnected, attempting final save...")
         asyncio.create_task(assistant.save_session_to_db(session.chat_ctx))
