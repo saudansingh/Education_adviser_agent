@@ -69,8 +69,7 @@ If no summary is available, start with: 'Hello! I'm Ankur, your education adviso
 async def upsert_session_summary(user_id: int, conversation_text: str):
     """Update existing session summary or create new one for current session"""
     try:
-        async with async_session() as session:
-            # Find the most recent summary for this user (current session)
+        async with session_scope() as session:
             result = await session.execute(
                 select(SessionSummary)
                 .where(SessionSummary.user_id == user_id)
@@ -78,14 +77,12 @@ async def upsert_session_summary(user_id: int, conversation_text: str):
                 .limit(1)
             )
             existing = result.scalar_one_or_none()
-            
+
             if existing:
-                # Update existing row
                 existing.summary = conversation_text
                 await session.commit()
                 logger.info(f"Updated session summary for user {user_id}")
             else:
-                # Create new row
                 new_summary = SessionSummary(user_id=user_id, summary=conversation_text)
                 session.add(new_summary)
                 await session.commit()
@@ -107,43 +104,38 @@ Remember to acknowledge this previous context naturally in your conversation."""
             logger.info(f"Agent initialized with memory summary: {memory_summary[:100]}...")
         else:
             logger.info("Agent initialized WITHOUT memory summary")
-        
+
         super().__init__(instructions=instructions)
         self.conversation_history = []
         self.user_id = None
-    
-  async def on_user_turn_completed(self, chat_ctx, new_message=None):
-    """Track conversation and save to database"""
-    text = None
-    if new_message and hasattr(new_message, 'content'):
-        content = new_message.content
-        if isinstance(content, list):
-            text = " ".join([str(c) if isinstance(c, str) else str(getattr(c, 'text', c)) for c in content])
-        elif isinstance(content, str):
-            text = content
-    elif hasattr(chat_ctx, 'messages') and chat_ctx.messages:
-        for msg in reversed(chat_ctx.messages):
-            if hasattr(msg, 'role') and msg.role == 'user' and hasattr(msg, 'content'):
-                content = msg.content
-                if isinstance(content, list):
-                    text = " ".join([str(c) if isinstance(c, str) else str(getattr(c, 'text', c)) for c in content])
-                elif isinstance(content, str):
-                    text = content
-                break
-    
-    if not text:
-        logger.warning("Could not extract text from user turn, skipping")
-        return
-    
-    self.conversation_history.append({"role": "user", "content": text})
-    logger.info(f"User turn completed: {text[:50]}...")
-    logger.info(f"Conversation history size: {len(self.conversation_history)}")
-    
-    if self.user_id and self.conversation_history:
-        conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in self.conversation_history])
-        await upsert_session_summary(self.user_id, conversation_text)
-        
-        # Save raw conversation text to database
+
+    async def on_user_turn_completed(self, chat_ctx, new_message=None):
+        """Track conversation and save to database"""
+        text = None
+        if new_message and hasattr(new_message, 'content'):
+            content = new_message.content
+            if isinstance(content, list):
+                text = " ".join([str(c) if isinstance(c, str) else str(getattr(c, 'text', c)) for c in content])
+            elif isinstance(content, str):
+                text = content
+        elif hasattr(chat_ctx, 'messages') and chat_ctx.messages:
+            for msg in reversed(chat_ctx.messages):
+                if hasattr(msg, 'role') and msg.role == 'user' and hasattr(msg, 'content'):
+                    content = msg.content
+                    if isinstance(content, list):
+                        text = " ".join([str(c) if isinstance(c, str) else str(getattr(c, 'text', c)) for c in content])
+                    elif isinstance(content, str):
+                        text = content
+                    break
+
+        if not text:
+            logger.warning("Could not extract text from user turn, skipping")
+            return
+
+        self.conversation_history.append({"role": "user", "content": text})
+        logger.info(f"User turn completed: {text[:50]}...")
+        logger.info(f"Conversation history size: {len(self.conversation_history)}")
+
         if self.user_id and self.conversation_history:
             conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in self.conversation_history])
             await upsert_session_summary(self.user_id, conversation_text)
@@ -151,7 +143,7 @@ Remember to acknowledge this previous context naturally in your conversation."""
 
 async def entrypoint(ctx: JobContext):
     logger.info(f"Job received for room: {ctx.room.name}")
-    
+
     # Extract user_id from room name
     user_id = None
     try:
@@ -163,7 +155,7 @@ async def entrypoint(ctx: JobContext):
             logger.info(f"Extracted user_id from room name: {user_id}")
     except Exception as e:
         logger.error(f"Could not extract user_id from room name: {e}")
-    
+
     # Load memory
     memory_summary = None
     if user_id:
@@ -173,23 +165,23 @@ async def entrypoint(ctx: JobContext):
         logger.info(f"Loaded memory_summary: {memory_summary[:100] if memory_summary else 'None'}...")
     else:
         logger.warning("No user_id available, skipping memory load")
-    
+
     assistant = Assistant(memory_summary=memory_summary)
     assistant.user_id = user_id
-    
+
     await ctx.connect()
-    
+
     session = AgentSession(
         stt="deepgram/nova-2",
         llm="openai/gpt-4o-mini",
         tts=deepgram.TTS(model="aura-orion-en"),
     )
-    
+
     await session.start(
         agent=assistant,
         room=ctx.room,
     )
-    
+
     await ctx.wait_for_participant()
 
 
