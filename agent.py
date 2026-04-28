@@ -112,32 +112,36 @@ Remember to acknowledge this previous context naturally in your conversation."""
         self.conversation_history = []
         self.user_id = None
     
-    async def on_user_turn_completed(self, chat_ctx, new_message=None):
-        """Track conversation and save to database"""
-        # Extract text from ChatContext or new_message
-        text = None
-        if new_message and hasattr(new_message, 'content'):
-            text = new_message.content
-        elif hasattr(chat_ctx, 'messages') and chat_ctx.messages:
-            # Get the last user message from ChatContext
-            for msg in reversed(chat_ctx.messages):
-                if hasattr(msg, 'role') and msg.role == 'user' and hasattr(msg, 'content'):
-                    text = msg.content
-                    break
-            if text is None:
-                text = chat_ctx.messages[-1].content if hasattr(chat_ctx.messages[-1], 'content') else str(chat_ctx.messages[-1])
-        elif isinstance(chat_ctx, str):
-            text = chat_ctx
-        else:
-            text = str(chat_ctx)
-        
-        if not text or text.startswith('<livekit'):
-            logger.warning(f"Could not extract text from user turn, skipping")
-            return
-        
-        self.conversation_history.append({"role": "user", "content": text})
-        logger.info(f"User turn completed: {text[:50]}...")
-        logger.info(f"Conversation history size: {len(self.conversation_history)}")
+  async def on_user_turn_completed(self, chat_ctx, new_message=None):
+    """Track conversation and save to database"""
+    text = None
+    if new_message and hasattr(new_message, 'content'):
+        content = new_message.content
+        if isinstance(content, list):
+            text = " ".join([str(c) if isinstance(c, str) else str(getattr(c, 'text', c)) for c in content])
+        elif isinstance(content, str):
+            text = content
+    elif hasattr(chat_ctx, 'messages') and chat_ctx.messages:
+        for msg in reversed(chat_ctx.messages):
+            if hasattr(msg, 'role') and msg.role == 'user' and hasattr(msg, 'content'):
+                content = msg.content
+                if isinstance(content, list):
+                    text = " ".join([str(c) if isinstance(c, str) else str(getattr(c, 'text', c)) for c in content])
+                elif isinstance(content, str):
+                    text = content
+                break
+    
+    if not text:
+        logger.warning("Could not extract text from user turn, skipping")
+        return
+    
+    self.conversation_history.append({"role": "user", "content": text})
+    logger.info(f"User turn completed: {text[:50]}...")
+    logger.info(f"Conversation history size: {len(self.conversation_history)}")
+    
+    if self.user_id and self.conversation_history:
+        conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in self.conversation_history])
+        await upsert_session_summary(self.user_id, conversation_text)
         
         # Save raw conversation text to database
         if self.user_id and self.conversation_history:
