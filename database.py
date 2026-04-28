@@ -83,17 +83,20 @@ async def load_memory(user_id: int, session: AsyncSession) -> str | None:
             .order_by(desc(SessionSummary.session_date))
             .limit(1)
         )
-        summary = result.scalar_one_or_none()
-        print(f"DEBUG: load_memory result: {summary}")
-        if summary:
-            print(f"DEBUG: Returning summary for user {user_id}: {summary[:100]}...")
-            return summary.summary
+        summary_obj = result.scalar_one_or_none()
+        
+        if summary_obj:
+            # CORRECTED: Access the string attribute .summary directly
+            # Then perform slicing on that string, not the object itself
+            summary_text = summary_obj.summary
+            print(f"DEBUG: Returning summary for user {user_id}: {summary_text[:100]}...")
+            return summary_text
+            
         print(f"DEBUG: No summary found for user {user_id}")
         return None
     except Exception as e:
         print(f"DEBUG: Failed to load memory for user {user_id}: {e}")
         return None
-
 async def save_summary(user_id: int, summary: str, session: AsyncSession):
     """Save a conversation summary for a user"""
     print(f"DEBUG: save_summary called with user_id={user_id}, type={type(user_id)}")
