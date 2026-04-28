@@ -139,60 +139,54 @@ async def save_conversation_summary(user_id: int, conversation_history: list):
 async def entrypoint(ctx: JobContext):
     logger.info(f"Job received for room: {ctx.room.name}")
     
-    # Extract user_id from room name (format: room-{user_id}-{timestamp})
+    # 1. Extract user_id
     user_id = None
     try:
         room_name = ctx.room.name
-        print(f"DEBUG: Room name: {room_name}")
         parts = room_name.split("-")
         if len(parts) >= 2 and parts[0] == "room":
             user_id = int(parts[1])
             print(f"DEBUG: Extracted user_id from room name: {user_id}")
     except Exception as e:
-        logger.error(f"Could not extract user_id from room name: {e}")
-        print(f"DEBUG: Error extracting user_id from room name: {e}")
+        logger.error(f"Could not extract user_id: {e}")
     
-    # Load memory if user_id is available
+    # 2. Load memory
     memory_summary = None
     if user_id:
-        print(f"DEBUG: Attempting to load memory for user_id={user_id}")
         async with async_session() as session:
             memory_summary = await load_memory(user_id, session)
-        print(f"DEBUG: Loaded memory_summary: {memory_summary[:100] if memory_summary else 'None'}...")
-    else:
-        print("DEBUG: No user_id available, skipping memory load")
     
-    # Create assistant with memory
+    # 3. Create Assistant instance (Defined BEFORE the try block)
     assistant = Assistant(memory_summary=memory_summary)
     assistant.user_id = user_id
     
-    await ctx.connect()
-    
+    # 4. Start Session
     session = AgentSession(
         stt="deepgram/nova-2",
         llm="openai/gpt-4o-mini",
         tts=deepgram.TTS(model="aura-orion-en"),
     )
     
-    await session.start(
-        agent=assistant,
-        room=ctx.room,
-    )
+    await session.start(agent=assistant, room=ctx.room)
+    await ctx.connect()
     
+    # 5. Execution and Cleanup
     try:
         await ctx.wait_for_participant()
     finally:
-        print(f"DEBUG: Session ended. user_id={user_id}, history_size={len(assistant.conversation_history)}")
-        if user_id and assistant.conversation_history:
-            print("DEBUG: Session ended, generating summary...")
-            conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in assistant.conversation_history])
-            summary = await summarize_conversation(conversation_text)
-            async with async_session() as session:
-                await save_summary(user_id, summary, session)
+        print(f"DEBUG: Session closing. user_id={user_id}, history_len={len(assistant.conversation_history)}")
+        
+        # We check the length of the history maintained inside the assistant object
+        if user_id and len(assistant.conversation_history) > 0:
+            print("DEBUG: Generating and saving summary for database...")
+            try:
+                conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in assistant.conversation_history])
+                summary = await summarize_conversation(conversation_text)
+                
+                async with async_session() as db_session:
+                    await save_summary(user_id, summary, db_session)
+                print("DEBUG: Successfully committed summary to DB.")
+            except Exception as e:
+                print(f"DEBUG: Critical error during save: {e}")
         else:
-            print(f"DEBUG: Skipping summary save. user_id={user_id}, has_history={bool(assistant.conversation_history)}")
-
-
-if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
-
+            print(f"DEBUG: Skipping save: user_id={user_id}, history_len={len(assistant.conversation_history)}")
