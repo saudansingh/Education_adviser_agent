@@ -112,16 +112,12 @@ async def summarize_conversation(conversation_text: str) -> str:
     logger.info(f"summarize_conversation called with {len(conversation_text)} characters")
     try:
         llm = openai.LLM(model="gpt-4o-mini")
-        response = await llm.chat([
-            {
-                "role": "system",
-                "content": "Summarize the following conversation concisely. Focus on the user's goals, topics discussed, and any action items. Keep it under 200 words."
-            },
-            {
-                "role": "user",
-                "content": conversation_text
-            }
-        ])
+        # Use correct API: llm.chat() takes a single ChatContext object
+        from livekit.agents.llm import ChatContext, ChatMessage
+        chat_ctx = ChatContext()
+        chat_ctx.append(ChatMessage(role="system", content="Summarize the following conversation concisely. Focus on the user's goals, topics discussed, and any action items. Keep it under 200 words."))
+        chat_ctx.append(ChatMessage(role="user", content=conversation_text))
+        response = await llm.chat(chat_ctx)
         logger.info(f"Summary generated: {response.content[:100]}...")
         return response.content
     except Exception as e:
