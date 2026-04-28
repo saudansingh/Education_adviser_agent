@@ -99,18 +99,18 @@ class Assistant(Agent):
         
         super().__init__(instructions=instructions)
         self.user_id = None
-        self.chat_ctx = None
+        self._chat_ctx = None
 
     async def chat_ctx_updated(self, chat_ctx):
-        self.chat_ctx = chat_ctx
+        self._chat_ctx = chat_ctx
 
     async def save_session_to_db(self):
         # Now we use the stored self.chat_ctx
-        if not self.chat_ctx:
+        if not self._chat_ctx:
             logger.warning("No chat_ctx available to save.")
             return
 
-        logger.info(f"DEBUG: Attempting to save, messages count: {len(self.chat_ctx.messages)}")
+        logger.info(f"DEBUG: Attempting to save, messages count: {len(self._chat_ctx.messages)}")
         
         if not self.user_id:
             logger.warning("No user_id found, skipping save.")
@@ -118,7 +118,7 @@ class Assistant(Agent):
             
         # Build the history string
         # Ensure 'self.chat_ctx.messages' is indented correctly under this method
-        conversation_text = "\n".join([f"{msg.role}: {msg.content}" for msg in self.chat_ctx.messages])
+        conversation_text = "\n".join([f"{msg.role}: {msg.content}" for msg in self._chat_ctx.messages])
         
         await upsert_session_summary(self.user_id, conversation_text)
         logger.info(f"Saved full history for user {self.user_id}")
