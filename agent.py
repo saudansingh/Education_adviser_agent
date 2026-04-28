@@ -5,16 +5,15 @@ from dotenv import load_dotenv
 from livekit.agents import (
     Agent,
     AgentSession,
-    AutoSubscribe,
     JobContext,
     WorkerOptions,
     cli,
 )
-from livekit.plugins import deepgram, openai, silero
+from livekit.plugins import deepgram, openai
 from database import async_session, load_memory, save_summary
 
+# Setup logging
 logger = logging.getLogger("agent")
-
 load_dotenv(".env.local")
 
 INSTRUCTIONS = """You are Ankur, a knowledgeable and encouraging Education Advisor AI assistant. Your name is Ankur and you specialize in educational guidance, career planning, and learning strategies.
@@ -42,125 +41,59 @@ Start by acknowledging the past: If a summary is provided, use it to personalize
 
 Maintain Continuity: Use the previous context to build upon existing goals rather than asking the user to repeat information.
 
-Synthesize: If the user asks a new question, cross-reference it with the previous summary to provide advice that is consistent with their long-term learning journey.
-
-Important Guidelines:
-- Provide personalized educational guidance
-- Consider individual learning styles and goals
-- Emphasize the importance of continuous learning
-- Suggest relevant educational resources and platforms
-- Use educational emojis (books, graduation caps, etc.)
-- Encourage lifelong learning and skill development
-
-Your Approach:
-1. Assess user's educational background and goals
-2. Provide personalized learning strategies
-3. Guide career and educational planning
-4. Suggest relevant courses and resources
-5. Help with study techniques and time management
-6. Encourage continuous skill development
-
-If no summary is available, start with: 'Hello! I'm Ankur, your education advisor specializing in learning strategies and career guidance. How can I help you achieve your educational goals today?'"""
-
+Synthesize: If the user asks a new question, cross-reference it with the previous summary to provide advice that is consistent with their long-term learning journey."""
 
 class Assistant(Agent):
     def __init__(self, memory_summary: str | None = None) -> None:
         instructions = INSTRUCTIONS
         if memory_summary:
-            instructions = f"""{INSTRUCTIONS}
-
-PREVIOUS CONVERSATION SUMMARY:
-{memory_summary}
-
-Remember to acknowledge this previous context naturally in your conversation."""
-            print(f"DEBUG: Agent initialized with memory summary: {memory_summary[:100] if memory_summary else 'None'}...")
-        else:
-            print(f"DEBUG: Agent initialized WITHOUT memory summary")
+            instructions = f"{INSTRUCTIONS}\n\nPREVIOUS CONVERSATION SUMMARY:\n{memory_summary}\n\nRemember to acknowledge this previous context naturally."
         
         super().__init__(instructions=instructions)
         self.conversation_history = []
         self.user_id = None
     
     async def on_user_turn_completed(self, user_input, new_message=None):
-        """Track conversation for summarization"""
-        if hasattr(user_input, 'text'):
-            text = user_input.text
-        elif isinstance(user_input, str):
-            text = user_input
-        else:
-            text = str(user_input)
-        
+        """Captures user input for summarization."""
+        text = user_input.text if hasattr(user_input, 'text') else str(user_input)
         self.conversation_history.append({"role": "user", "content": text})
-        logger.info(f"User turn completed: {text[:50]}...")
-        print(f"DEBUG: Conversation history size: {len(self.conversation_history)}")
-
+        logger.info(f"Captured turn: {text[:50]}...")
 
 async def summarize_conversation(conversation_text: str) -> str:
-    """Summarize conversation using GPT-4o-mini"""
-    print(f"DEBUG: summarize_conversation called with {len(conversation_text)} characters")
+    """Summarize conversation using GPT-4o-mini."""
     try:
         llm = openai.LLM(model="gpt-4o-mini")
         response = await llm.chat([
-            {
-                "role": "system",
-                "content": "Summarize the following conversation concisely. Focus on the user's goals, topics discussed, and any action items. Keep it under 200 words."
-            },
-            {
-                "role": "user",
-                "content": conversation_text
-            }
+            {"role": "system", "content": "Summarize concisely. Focus on user goals, topics, and action items. Max 200 words."},
+            {"role": "user", "content": conversation_text}
         ])
-        print(f"DEBUG: Summary generated: {response.content[:100]}...")
         return response.content
     except Exception as e:
-        logger.error(f"Failed to summarize conversation: {e}")
-        print(f"DEBUG: Failed to summarize conversation: {e}")
+        logger.error(f"Failed to summarize: {e}")
         return "Conversation summary unavailable"
 
-
-async def save_conversation_summary(user_id: int, conversation_history: list):
-    """Save conversation summary - called from shutdown handler"""
-    print(f"DEBUG: save_conversation_summary called. user_id={user_id}, history_size={len(conversation_history)}")
-    if not user_id or not conversation_history:
-        print(f"DEBUG: Skipping save - no user_id or empty history")
-        return
-    
-    try:
-        conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in conversation_history])
-        print(f"DEBUG: Conversation text length: {len(conversation_text)}")
-        summary = await summarize_conversation(conversation_text)
-        print(f"DEBUG: About to save summary for user_id={user_id}")
-        async with async_session() as session:
-            await save_summary(user_id, summary, session)
-        print(f"DEBUG: Summary save completed")
-    except Exception as e:
-        print(f"DEBUG: Error in save_conversation_summary: {e}")
-        
 async def entrypoint(ctx: JobContext):
     logger.info(f"Job received for room: {ctx.room.name}")
     
-    # 1. Extract user_id
+    # 1. Extract user_id from metadata
     user_id = None
     try:
-        room_name = ctx.room.name
-        parts = room_name.split("-")
-        if len(parts) >= 2 and parts[0] == "room":
-            user_id = int(parts[1])
-            print(f"DEBUG: Extracted user_id from room name: {user_id}")
+        metadata_dict = json.loads(ctx.job.metadata) if isinstance(ctx.job.metadata, str) else ctx.job.metadata
+        user_id = metadata_dict.get("user_id")
     except Exception as e:
-        logger.error(f"Could not extract user_id: {e}")
-    
-    # 2. Load memory
+        logger.error(f"Error extracting metadata: {e}")
+
+    # 2. Load memory from DB
     memory_summary = None
     if user_id:
         async with async_session() as session:
             memory_summary = await load_memory(user_id, session)
-    
-    # 3. Create Assistant instance (Defined BEFORE the try block)
+            
+    # 3. Initialize Assistant
     assistant = Assistant(memory_summary=memory_summary)
     assistant.user_id = user_id
     
-    # 4. Start Session
+    # 4. Setup Session
     session = AgentSession(
         stt="deepgram/nova-2",
         llm="openai/gpt-4o-mini",
@@ -174,19 +107,18 @@ async def entrypoint(ctx: JobContext):
     try:
         await ctx.wait_for_participant()
     finally:
-        print(f"DEBUG: Session closing. user_id={user_id}, history_len={len(assistant.conversation_history)}")
-        
-        # We check the length of the history maintained inside the assistant object
-        if user_id and len(assistant.conversation_history) > 0:
-            print("DEBUG: Generating and saving summary for database...")
+        # Saving happens after user disconnects
+        logger.info(f"Session ending. User: {user_id}, History Count: {len(assistant.conversation_history)}")
+        if user_id and assistant.conversation_history:
             try:
-                conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in assistant.conversation_history])
-                summary = await summarize_conversation(conversation_text)
+                history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in assistant.conversation_history])
+                summary = await summarize_conversation(history_text)
                 
                 async with async_session() as db_session:
                     await save_summary(user_id, summary, db_session)
-                print("DEBUG: Successfully committed summary to DB.")
+                logger.info("Summary saved successfully.")
             except Exception as e:
-                print(f"DEBUG: Critical error during save: {e}")
-        else:
-            print(f"DEBUG: Skipping save: user_id={user_id}, history_len={len(assistant.conversation_history)}")
+                logger.error(f"Critical error during summary save: {e}")
+
+if __name__ == "__main__":
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
