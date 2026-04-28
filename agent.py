@@ -101,7 +101,9 @@ class Assistant(Agent):
         self.user_id = None
 
     async def save_session_to_db(self, chat_ctx):
+        logger.info(f"DEBUG: Attempting to save, messages count: {len(chat_ctx.messages)}")
         if not self.user_id:
+            logger.warning("No user_id found, skipping save.")
             return
         
         # Build the history string
@@ -150,11 +152,15 @@ async def entrypoint(ctx: JobContext):
 
     @ctx.room.on("participant_disconnected")
     def on_participant_disconnected(participant):
+        logger.info(f"Participant {participant.identity} disconnected. Triggering save.")
         asyncio.create_task(assistant.save_session_to_db(session.chat_ctx))
 
     await session.start(agent=assistant, room=ctx.room)
     await ctx.wait_for_participant()
-
+    @ctx.room.on("disconnected")
+    def on_room_disconnected():
+        logger.info("Room disconnected, attempting final save...")
+        asyncio.create_task(assistant.save_session_to_db(session.chat_ctx))
 
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
