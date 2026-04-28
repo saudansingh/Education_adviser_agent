@@ -162,7 +162,7 @@ async def entrypoint(ctx: JobContext):
         tts=deepgram.TTS(model="aura-orion-en"),
     )
 
-  @ctx.room.on("participant_disconnected")
+    @ctx.room.on("participant_disconnected")
     def on_participant_disconnected(participant):
         logger.info(f"Participant {participant.identity} disconnected. Triggering save.")
         # Call without arguments now
