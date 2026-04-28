@@ -99,9 +99,19 @@ class Assistant(Agent):
         
         super().__init__(instructions=instructions)
         self.user_id = None
+        self.chat_ctx = None
 
-    async def save_session_to_db(self, chat_ctx):
-        logger.info(f"DEBUG: Attempting to save, messages count: {len(chat_ctx.messages)}")
+    async def chat_ctx_updated(self, chat_ctx):
+        self.chat_ctx = chat_ctx
+
+   async def save_session_to_db(self):
+        # Now we use the stored self.chat_ctx
+        if not self.chat_ctx:
+            logger.warning("No chat_ctx available to save.")
+            return
+
+        logger.info(f"DEBUG: Attempting to save, messages count: {len(self.chat_ctx.messages)}")
+        
         if not self.user_id:
             logger.warning("No user_id found, skipping save.")
             return
@@ -151,10 +161,11 @@ async def entrypoint(ctx: JobContext):
         tts=deepgram.TTS(model="aura-orion-en"),
     )
 
-    @ctx.room.on("participant_disconnected")
+  @ctx.room.on("participant_disconnected")
     def on_participant_disconnected(participant):
         logger.info(f"Participant {participant.identity} disconnected. Triggering save.")
-        asyncio.create_task(assistant.save_session_to_db(session.chat_ctx))
+        # Call without arguments now
+        asyncio.create_task(assistant.save_session_to_db())
 
     await session.start(agent=assistant, room=ctx.room)
     await ctx.wait_for_participant()
