@@ -122,16 +122,21 @@ class Assistant(Agent):
 
     async def on_user_turn_completed(self, chat_ctx, new_message=None):
         """Save full conversation to DB on every user turn"""
+        # chat_ctx.messages is a METHOD in this SDK version
+        try:
+            messages = chat_ctx.messages() if callable(chat_ctx.messages) else chat_ctx.messages
+        except Exception:
+            messages = []
+
         lines = []
-        if hasattr(chat_ctx, 'messages') and chat_ctx.messages:
-            for msg in chat_ctx.messages:
-                role = getattr(msg, 'role', 'unknown')
-                content = getattr(msg, 'content', None)
-                if content is None or role == 'system':
-                    continue
-                text = self._extract_text(content)
-                if text and not text.startswith('<livekit'):
-                    lines.append(f"{role}: {text}")
+        for msg in messages:
+            role = getattr(msg, 'role', 'unknown')
+            content = getattr(msg, 'content', None)
+            if content is None or role == 'system':
+                continue
+            text = self._extract_text(content)
+            if text and not text.startswith('<livekit'):
+                lines.append(f"{role}: {text}")
 
         if not lines:
             logger.warning("No conversation lines extracted, skipping save")
@@ -162,13 +167,12 @@ async def entrypoint(ctx: JobContext):
     except Exception as e:
         logger.error(f"Could not extract user_id from room name: {e}")
 
-    # Load memory - skip if it contains garbage from old bugs
+    # Load memory - skip corrupt data from old bugs
     memory_summary = None
     if user_id:
         logger.info(f"Attempting to load memory for user_id={user_id}")
         async with async_session() as session:
             raw_summary = await load_memory(user_id, session)
-        # Filter out garbage data from old ChatContext object repr bug
         if raw_summary and 'ChatContext object at' not in raw_summary:
             memory_summary = raw_summary
             logger.info(f"Loaded memory_summary: {memory_summary[:100]}...")
