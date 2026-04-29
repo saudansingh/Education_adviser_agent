@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 from livekit.agents import (
     Agent,
     AgentSession,
-    AutoSubscribe,
     JobContext,
     WorkerOptions,
     cli,
@@ -65,29 +64,30 @@ Your Approach:
 If no summary is available, start with: 'Hello! I'm Ankur, your education advisor specializing in learning strategies and career guidance. How can I help you achieve your educational goals today?'"""
 
 
-async def upsert_session_summary(user_id: int, conversation_text: str):
-    """Update existing session summary or create new one for current session"""
+async def save_session_summary(summary_id: int | None, user_id: int, conversation_text: str) -> int:
+    """Create or update session summary row by ID. Returns row ID."""
     try:
         async with async_session() as session:
-            result = await session.execute(
-                select(SessionSummary)
-                .where(SessionSummary.user_id == user_id)
-                .order_by(desc(SessionSummary.created_at))
-                .limit(1)
-            )
-            existing = result.scalar_one_or_none()
+            if summary_id:
+                result = await session.execute(
+                    select(SessionSummary).where(SessionSummary.id == summary_id)
+                )
+                existing = result.scalar_one_or_none()
+                if existing:
+                    existing.summary = conversation_text
+                    await session.commit()
+                    logger.info(f"Updated summary row {summary_id} for user {user_id}")
+                    return summary_id
 
-            if existing:
-                existing.summary = conversation_text
-                await session.commit()
-                logger.info(f"Updated session summary for user {user_id}")
-            else:
-                new_summary = SessionSummary(user_id=user_id, summary=conversation_text)
-                session.add(new_summary)
-                await session.commit()
-                logger.info(f"Created session summary for user {user_id}")
+            new_summary = SessionSummary(user_id=user_id, summary=conversation_text)
+            session.add(new_summary)
+            await session.commit()
+            await session.refresh(new_summary)
+            logger.info(f"Created summary row {new_summary.id} for user {user_id}")
+            return new_summary.id
     except Exception as e:
-        logger.error(f"Failed to upsert session summary: {e}")
+        logger.error(f"Failed to save session summary: {e}")
+        return summary_id or 0
 
 
 class Assistant(Agent):
@@ -96,32 +96,55 @@ class Assistant(Agent):
         if memory_summary:
             instructions = f"{INSTRUCTIONS}\n\nPREVIOUS CONVERSATION SUMMARY:\n{memory_summary}\n\nRemember to acknowledge this context naturally."
             logger.info("Agent initialized with memory summary")
-        
+        else:
+            logger.info("Agent initialized WITHOUT memory summary")
+
         super().__init__(instructions=instructions)
         self.user_id = None
-        self._chat_ctx = None
+        self.session_summary_id = None
 
-    async def chat_ctx_updated(self, chat_ctx):
-        self._chat_ctx = chat_ctx
+    def _extract_text(self, content) -> str:
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts = []
+            for c in content:
+                if isinstance(c, str):
+                    parts.append(c)
+                elif hasattr(c, 'text'):
+                    parts.append(c.text)
+                else:
+                    parts.append(str(c))
+            return " ".join(parts)
+        if hasattr(content, 'text'):
+            return content.text
+        return str(content)
 
-    async def save_session_to_db(self):
-        # Now we use the stored self.chat_ctx
-        if not self._chat_ctx:
-            logger.warning("No chat_ctx available to save.")
+    async def on_user_turn_completed(self, chat_ctx, new_message=None):
+        """Save full conversation to DB on every user turn"""
+        lines = []
+        if hasattr(chat_ctx, 'messages') and chat_ctx.messages:
+            for msg in chat_ctx.messages:
+                role = getattr(msg, 'role', 'unknown')
+                content = getattr(msg, 'content', None)
+                if content is None or role == 'system':
+                    continue
+                text = self._extract_text(content)
+                if text and not text.startswith('<livekit'):
+                    lines.append(f"{role}: {text}")
+
+        if not lines:
+            logger.warning("No conversation lines extracted, skipping save")
             return
 
-        logger.info(f"DEBUG: Attempting to save, messages count: {len(self._chat_ctx.messages)}")
-        
-        if not self.user_id:
-            logger.warning("No user_id found, skipping save.")
-            return
-            
-        # Build the history string
-        # Ensure 'self.chat_ctx.messages' is indented correctly under this method
-        conversation_text = "\n".join([f"{msg.role}: {msg.content}" for msg in self._chat_ctx.messages])
-        
-        await upsert_session_summary(self.user_id, conversation_text)
-        logger.info(f"Saved full history for user {self.user_id}")
+        conversation_text = "\n".join(lines)
+        logger.info(f"Conversation: {len(lines)} messages, {len(conversation_text)} chars")
+
+        if self.user_id:
+            self.session_summary_id = await save_session_summary(
+                self.session_summary_id, self.user_id, conversation_text
+            )
+
 
 async def entrypoint(ctx: JobContext):
     await init_db()
@@ -139,23 +162,27 @@ async def entrypoint(ctx: JobContext):
     except Exception as e:
         logger.error(f"Could not extract user_id from room name: {e}")
 
-    # Load memory
+    # Load memory - skip if it contains garbage from old bugs
     memory_summary = None
     if user_id:
         logger.info(f"Attempting to load memory for user_id={user_id}")
         async with async_session() as session:
-            memory_summary = await load_memory(user_id, session)
-        logger.info(f"Loaded memory_summary: {memory_summary[:100] if memory_summary else 'None'}...")
+            raw_summary = await load_memory(user_id, session)
+        # Filter out garbage data from old ChatContext object repr bug
+        if raw_summary and 'ChatContext object at' not in raw_summary:
+            memory_summary = raw_summary
+            logger.info(f"Loaded memory_summary: {memory_summary[:100]}...")
+        elif raw_summary:
+            logger.warning(f"Skipping corrupt memory data for user {user_id}")
+        else:
+            logger.info("No previous memory found")
     else:
         logger.warning("No user_id available, skipping memory load")
 
     assistant = Assistant(memory_summary=memory_summary)
     assistant.user_id = user_id
 
-   
-
     await ctx.connect()
-    await asyncio.sleep(0.5)
 
     session = AgentSession(
         stt="deepgram/nova-2",
@@ -163,18 +190,13 @@ async def entrypoint(ctx: JobContext):
         tts=deepgram.TTS(model="aura-orion-en"),
     )
 
-    @ctx.room.on("participant_disconnected")
-    def on_participant_disconnected(participant):
-        logger.info(f"Participant {participant.identity} disconnected. Triggering save.")
-        # Call without arguments now
-        asyncio.create_task(assistant.save_session_to_db())
+    await session.start(
+        agent=assistant,
+        room=ctx.room,
+    )
 
-    await session.start(agent=assistant, room=ctx.room)
     await ctx.wait_for_participant()
-    
-    def on_room_disconnected():
-        logger.info("Room disconnected, attempting final save...")
-        asyncio.create_task(assistant.save_session_to_db(session.chat_ctx))
+
 
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
