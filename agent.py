@@ -9,6 +9,7 @@ from livekit.agents import (
     AutoSubscribe,
     JobContext,
     WorkerOptions,
+    ChatContext,
     cli,
 )
 from livekit.plugins import deepgram, openai, silero
@@ -156,12 +157,15 @@ async def entrypoint(ctx: JobContext):
 
     await ctx.connect()
     await asyncio.sleep(0.5)
+    chat_ctx = ChatContext()
 
     session = AgentSession(
+        chat_ctx=chat_ctx,
         stt="deepgram/nova-2",
         llm="openai/gpt-4o-mini",
         tts=deepgram.TTS(model="aura-orion-en"),
     )
+    assistant._chat_ctx = chat_ctx
 
     @ctx.room.on("participant_disconnected")
     def on_participant_disconnected(participant):
