@@ -9,7 +9,7 @@ from livekit.agents import (
     AutoSubscribe,
     JobContext,
     WorkerOptions,
-    VoiceAssistant
+    VoiceAssistant,
     cli,
 )
 from livekit.plugins import deepgram, openai, silero
