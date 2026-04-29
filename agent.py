@@ -10,7 +10,6 @@ from livekit.agents import (
     JobContext,
     WorkerOptions,
     VoiceAssistant
-    ChatContext,
     cli,
 )
 from livekit.plugins import deepgram, openai, silero
