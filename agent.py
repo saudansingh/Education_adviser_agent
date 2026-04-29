@@ -9,6 +9,7 @@ from livekit.agents import (
     AutoSubscribe,
     JobContext,
     WorkerOptions,
+    VoiceAssistant
     ChatContext,
     cli,
 )
@@ -93,6 +94,17 @@ async def upsert_session_summary(user_id: int, conversation_text: str):
 
 class Assistant(Agent):
     def __init__(self, memory_summary: str | None = None) -> None:
+        super().__init__(
+            vad=silero.VAD.load(),
+            stt=deepgram.STT(),
+            llm=openai.LLM(model="gpt-4o-mini"),
+            tts=deepgram.TTS(),
+            chat_ctx=ChatContext() # Initialize here!
+        )
+        self.user_id = None
+
+
+        
         instructions = INSTRUCTIONS
         if memory_summary:
             instructions = f"{INSTRUCTIONS}\n\nPREVIOUS CONVERSATION SUMMARY:\n{memory_summary}\n\nRemember to acknowledge this context naturally."
@@ -152,15 +164,15 @@ async def entrypoint(ctx: JobContext):
 
     assistant = Assistant(memory_summary=memory_summary)
     assistant.user_id = user_id
+    assistant.start(ctx.room)
 
    
 
     await ctx.connect()
     await asyncio.sleep(0.5)
-    chat_ctx = ChatContext()
+    
 
     session = AgentSession(
-        chat_ctx=chat_ctx,
         stt="deepgram/nova-2",
         llm="openai/gpt-4o-mini",
         tts=deepgram.TTS(model="aura-orion-en"),
