@@ -12,7 +12,7 @@ from livekit.agents import (
     ChatContext,
     cli,
 )
-from livekit.agents.voice_assistant import VoiceAssistant
+from livekit.agents.voice import VoiceAssistant
 from livekit.plugins import deepgram, openai, silero
 from database import async_session, load_memory, save_summary, SessionSummary, init_db
 from sqlalchemy import select, desc
