@@ -63,6 +63,7 @@ Your Approach:
 
 If no summary is available, start with: 'Hello! I'm Ankur, your education advisor specializing in learning strategies and career guidance. How can I help you achieve your educational goals today?'"""
 
+
 async def save_session_summary(summary_id: int | None, user_id: int, conversation_text: str) -> int:
     """Create or update session summary row by ID. Returns row ID."""
     try:
