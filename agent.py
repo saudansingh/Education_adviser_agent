@@ -66,31 +66,38 @@ If no summary is available, start with: 'Hello! I'm Ankur, your education adviso
 
 # In agent.py
 async def save_session_summary(summary_id: int | None, user_id: int, conversation_text: str) -> int:
+    """Saves conversation to chat_sessions using TEXT columns."""
     try:
         async with async_session() as session:
             if summary_id:
-                # Target 'ChatSession' because that's what the API reads
+                # 1. Update existing row
                 result = await session.execute(
                     select(ChatSession).where(ChatSession.id == summary_id)
                 )
                 existing = result.scalar_one_or_none()
                 if existing:
-                    existing.summary = conversation_text # Full transcript into summary
-                    # existing.messages = conversation_text # Optional: if column exists
+                    # You mentioned you want only the summary, 
+                    # so we save the text into the summary column.
+                    existing.summary = conversation_text
+                    existing.messages = conversation_text # Since this is now TEXT, this works!
                     await session.commit()
+                    logger.info(f"Successfully updated chat_session {summary_id}")
                     return summary_id
 
-            # Create NEW record in 'chat_sessions'
+            # 2. Create new row
             new_record = ChatSession(
-                user_id=user_id, 
-                summary=conversation_text 
+                user_id=user_id,
+                summary=conversation_text,
+                messages=conversation_text
             )
             session.add(new_record)
             await session.commit()
             await session.refresh(new_record)
+            logger.info(f"Successfully created chat_session {new_record.id}")
             return new_record.id
+            
     except Exception as e:
-        logger.error(f"Error saving to chat_sessions: {e}")
+        logger.error(f"Error during DB save: {e}")
         return summary_id or 0
 
 
