@@ -69,30 +69,36 @@ async def save_session_summary(summary_id: int | None, user_id: int, conversatio
     try:
         async with async_session() as session:
             if summary_id:
+                # FIX 1: Changed 'SessionSession' (typo) to 'SessionSummary'
                 result = await session.execute(
-                    select(SessionSession).where(SessionSession.id == summary_id)
+                    select(SessionSummary).where(SessionSummary.id == summary_id)
                 )
                 existing = result.scalar_one_or_none()
                 if existing:
+                    # FIX 2: Only assign 'messages' if your SessionSummary model actually has that column
                     existing.summary = conversation_text
-                    existing.messages = conversation_text
+                    # existing.messages = conversation_text # Uncomment ONLY if column exists in DB
                     await session.commit()
                     logger.info(f"Updated summary row {summary_id} for user {user_id}")
                     return summary_id
 
-            new_summary = SessionSummary(user_id=user_id, summary=conversation_text)
-            new_session = ChatSession(
+            # FIX 3: You defined 'new_session' but didn't session.add() it. 
+            # If you want to save to 'SessionSummary', stick to that model consistently.
+            new_summary = SessionSummary(
                 user_id=user_id, 
-                summary="New Education Session", 
-                messages=conversation_text
+                summary=conversation_text
             )
+            
             session.add(new_summary)
             await session.commit()
             await session.refresh(new_summary)
+            
             logger.info(f"Created summary row {new_summary.id} for user {user_id}")
             return new_summary.id
+
     except Exception as e:
-        logger.error(f"Failed to save session summary: {e}")
+        # This will show up in GCP logs if it fails
+        logger.error(f"DATABASE ERROR in save_session_summary: {e}")
         return summary_id or 0
 
 
