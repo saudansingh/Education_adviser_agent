@@ -85,7 +85,7 @@ function App() {
 
   const loadChatHistory = async (token) => {
     try {
-      const API_URL = process.env.REACT_APP_API_URL || 'https://educationadviseragent-production.up.railway.app';
+      const API_URL = process.env.REACT_APP_API_URL || 'https://ankur-280807492599.asia-south2.run.app';
       const response = await fetch(`${API_URL}/chat-history`, {
         method: 'GET',
         headers: {
@@ -117,7 +117,7 @@ function App() {
     setIsLoading(true);
     
     try {
-      const API_URL = process.env.REACT_APP_API_URL || 'https://educationadviseragent-production.up.railway.app';
+      const API_URL = process.env.REACT_APP_API_URL || 'https://ankur-280807492599.asia-south2.run.app';
       const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: {
@@ -164,7 +164,7 @@ function App() {
     
     try {
       // Use environment variable for API URL
-      const API_URL = process.env.REACT_APP_API_URL || 'https://educationadviseragent-production.up.railway.app';
+      const API_URL = process.env.REACT_APP_API_URL || 'https://ankur-280807492599.asia-south2.run.app';
       
       const response = await fetch(`${API_URL}/token`, {
         method: 'POST',
@@ -327,7 +327,7 @@ function App() {
     if (!jwtToken) return;
     
     try {
-      const API_URL = process.env.REACT_APP_API_URL || 'https://educationadviseragent-production.up.railway.app';
+      const API_URL = process.env.REACT_APP_API_URL || 'https://ankur-280807492599.asia-south2.run.app';
       const response = await fetch(`${API_URL}/chat-summary`, {
         method: 'POST',
         headers: {
