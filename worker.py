@@ -8,4 +8,4 @@ load_dotenv(".env.local")
 
 if __name__ == "__main__":
     # Run agent worker
-    asyncio.run(cli.cli_entrypoint(["agent", "run", "agent"]))
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
