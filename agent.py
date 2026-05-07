@@ -11,7 +11,7 @@ from livekit.agents import (
     cli,
 )
 from livekit.plugins import deepgram, openai, silero
-from database import async_session, load_memory, save_summary, SessionSummary, init_db
+from database import async_session, load_memory, save_summary, ChatSession, SessionSummary, init_db
 from sqlalchemy import select, desc
 
 logger = logging.getLogger("agent")
@@ -70,16 +70,22 @@ async def save_session_summary(summary_id: int | None, user_id: int, conversatio
         async with async_session() as session:
             if summary_id:
                 result = await session.execute(
-                    select(SessionSummary).where(SessionSummary.id == summary_id)
+                    select(SessionSession).where(SessionSession.id == summary_id)
                 )
                 existing = result.scalar_one_or_none()
                 if existing:
                     existing.summary = conversation_text
+                    existing.messages = conversation_text
                     await session.commit()
                     logger.info(f"Updated summary row {summary_id} for user {user_id}")
                     return summary_id
 
             new_summary = SessionSummary(user_id=user_id, summary=conversation_text)
+            new_session = ChatSession(
+                user_id=user_id, 
+                summary="New Education Session", 
+                messages=conversation_text
+            )
             session.add(new_summary)
             await session.commit()
             await session.refresh(new_summary)
