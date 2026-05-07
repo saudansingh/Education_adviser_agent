@@ -1,4 +1,4 @@
-import subprocess
+
 import json
 import os
 from fastapi import FastAPI, HTTPException, Depends, Header
@@ -43,13 +43,7 @@ async def startup_event():
     await init_db()
 
 
-    # 2. Start the Agent Worker in the background
-    try:
-        # We use Popen so it runs in the background without blocking the API
-        subprocess.Popen(["python", "agent.py", "dev"])
-        print("DEBUG: Agent Worker started successfully in background")
-    except Exception as e:
-        print(f"DEBUG: Failed to start Agent Worker: {e}")
+   
 
 def create_jwt_token(user_id: int, email: str) -> str:
     """Create JWT token for user"""
