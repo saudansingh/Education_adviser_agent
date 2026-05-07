@@ -64,41 +64,33 @@ Your Approach:
 If no summary is available, start with: 'Hello! I'm Ankur, your education advisor specializing in learning strategies and career guidance. How can I help you achieve your educational goals today?'"""
 
 
+# In agent.py
 async def save_session_summary(summary_id: int | None, user_id: int, conversation_text: str) -> int:
-    """Create or update session summary row by ID. Returns row ID."""
     try:
         async with async_session() as session:
             if summary_id:
-                # FIX 1: Changed 'SessionSession' (typo) to 'SessionSummary'
+                # Target 'ChatSession' because that's what the API reads
                 result = await session.execute(
-                    select(SessionSummary).where(SessionSummary.id == summary_id)
+                    select(ChatSession).where(ChatSession.id == summary_id)
                 )
                 existing = result.scalar_one_or_none()
                 if existing:
-                    # FIX 2: Only assign 'messages' if your SessionSummary model actually has that column
-                    existing.summary = conversation_text
-                    # existing.messages = conversation_text # Uncomment ONLY if column exists in DB
+                    existing.summary = conversation_text # Full transcript into summary
+                    # existing.messages = conversation_text # Optional: if column exists
                     await session.commit()
-                    logger.info(f"Updated summary row {summary_id} for user {user_id}")
                     return summary_id
 
-            # FIX 3: You defined 'new_session' but didn't session.add() it. 
-            # If you want to save to 'SessionSummary', stick to that model consistently.
-            new_summary = SessionSummary(
+            # Create NEW record in 'chat_sessions'
+            new_record = ChatSession(
                 user_id=user_id, 
-                summary=conversation_text
+                summary=conversation_text 
             )
-            
-            session.add(new_summary)
+            session.add(new_record)
             await session.commit()
-            await session.refresh(new_summary)
-            
-            logger.info(f"Created summary row {new_summary.id} for user {user_id}")
-            return new_summary.id
-
+            await session.refresh(new_record)
+            return new_record.id
     except Exception as e:
-        # This will show up in GCP logs if it fails
-        logger.error(f"DATABASE ERROR in save_session_summary: {e}")
+        logger.error(f"Error saving to chat_sessions: {e}")
         return summary_id or 0
 
 
