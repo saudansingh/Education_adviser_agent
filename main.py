@@ -1,6 +1,7 @@
 
 import json
 import os
+from livekit.agents import WorkerOptions, WorkerType, worker
 import asyncio  # <--- Added missing import
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +11,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from database import init_db, get_db, User, ChatSession
 from sqlalchemy.ext.asyncio import AsyncSession
-from livekit.agents import WorkerOptions, WorkerType, worker
+
 
 # Load environment variables
 load_dotenv(".env.local")
