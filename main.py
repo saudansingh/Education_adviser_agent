@@ -1,6 +1,7 @@
 
 import json
 import os
+import asyncio  # <--- Added missing import
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -9,6 +10,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from database import init_db, get_db, User, ChatSession
 from sqlalchemy.ext.asyncio import AsyncSession
+from livekit.agents import WorkerOptions, WorkerType, worker
 
 # Load environment variables
 load_dotenv(".env.local")
@@ -25,19 +27,30 @@ JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-pro
 # Configure CORS
 app = FastAPI()
 
+# 1. Background Task to start the LiveKit Agent
 async def start_livekit_worker():
     """Background task to start the LiveKit Agent"""
-    opts = WorkerOptions(
-        entrypoint_fnc=entrypoint, # Make sure this matches your agent function name
-        worker_type=WorkerType.ROOM,
-    )
-    # This runs the background worker that talks to LiveKit Cloud
-    await worker.run(opts)
-# 2. TRIGGER IT ON STARTUP
+    try:
+        # Define your options
+        opts = WorkerOptions(
+            entrypoint_fnc=entrypoint, # This MUST be defined or imported
+            worker_type=WorkerType.ROOM,
+        )
+        # This starts the background connection to LiveKit
+        print("LOG: Connecting Agent to LiveKit Cloud...")
+        await worker.run(opts)
+    except Exception as e:
+        print(f"LOG ERROR: LiveKit worker failed to start: {e}")
+
+# 2. COMBINED STARTUP EVENT
 @app.on_event("startup")
 async def startup_event():
+    # A. Initialize Database
+    await init_db()
+    print("LOG: Database initialized.")
 
-
+    # B. Start Agent Worker in background
+    # This ensures Port 8080 stays open for Cloud Run health checks
     asyncio.create_task(start_livekit_worker())
     print("LOG: LiveKit Worker task has been scheduled in the background.")
 
