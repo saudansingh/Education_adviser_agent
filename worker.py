@@ -1,24 +1,16 @@
 import asyncio
 import os
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import threading
 from livekit.agents import WorkerOptions, cli
-from agent import entrypoint 
-
-# 1. ADD THIS: A tiny server to satisfy Cloud Run's port requirement
-class HealthCheckHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Agent is alive")
-
-def run_health_check():
-    server = HTTPServer(('0.0.0.0', 8080), HealthCheckHandler)
-    server.serve_forever()
+from agent import entrypoint  # Ensure this points to your entrypoint function
 
 if __name__ == "__main__":
-    # 2. Start the health check in a separate thread
-    threading.Thread(target=run_health_check, daemon=True).start()
+    # 1. Get the port Cloud Run wants (it defaults to 8080)
+    port = int(os.environ.get("PORT", 8080))
     
-    # 3. Run the agent
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+    # 2. Start the LiveKit Agent Worker
+    # We must bind to 0.0.0.0 so the "outside" Google probe can reach it
+    cli.run_app(
+        WorkerOptions(entrypoint_fnc=entrypoint),
+        host="0.0.0.0",
+        port=port
+    )
