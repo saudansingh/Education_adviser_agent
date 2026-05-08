@@ -24,6 +24,23 @@ JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-pro
 
 # Configure CORS
 app = FastAPI()
+
+async def start_livekit_worker():
+    """Background task to start the LiveKit Agent"""
+    opts = WorkerOptions(
+        entrypoint_fnc=entrypoint, # Make sure this matches your agent function name
+        worker_type=WorkerType.ROOM,
+    )
+    # This runs the background worker that talks to LiveKit Cloud
+    await worker.run(opts)
+# 2. TRIGGER IT ON STARTUP
+@app.on_event("startup")
+async def startup_event():
+
+
+    asyncio.create_task(start_livekit_worker())
+    print("LOG: LiveKit Worker task has been scheduled in the background.")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
