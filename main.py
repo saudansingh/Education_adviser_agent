@@ -1,5 +1,6 @@
 import os
 import asyncio
+import contextlib
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -22,8 +23,28 @@ DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-production")
 
+# Lifespan context manager for startup/shutdown
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    print("LOG: Starting up...")
+    await init_db()
+    print("LOG: Database initialized.")
+    
+    # Start Agent Worker in background
+    print("LOG: About to start LiveKit worker...")
+    try:
+        asyncio.create_task(start_livekit_worker())
+        print("LOG: LiveKit Worker task has been scheduled.")
+    except Exception as e:
+        print(f"LOG ERROR: Failed to schedule LiveKit worker: {e}")
+    
+    yield
+    # Shutdown
+    print("LOG: Shutting down...")
+
 # Configure CORS
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -37,26 +58,22 @@ JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-pro
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
-# Startup event to initialize database and start agent worker
-@app.on_event("startup")
-async def startup_event():
-    # A. Initialize Database
-    await init_db()
-    print("LOG: Database initialized.")
-    
-    # B. Start Agent Worker in background
-    asyncio.create_task(start_livekit_worker())
-    print("LOG: LiveKit Worker task has been scheduled in the background.")
+# Background task to start the LiveKit Agent
+# (moved startup logic to lifespan context manager above)
 
 # Background task to start the LiveKit Agent
 async def start_livekit_worker():
     """Background task to start the LiveKit Agent using CLI approach"""
     try:
+        print("LOG: Importing LiveKit CLI and WorkerOptions...")
         from livekit.agents import cli, WorkerOptions
         print("LOG: Starting LiveKit Agent using CLI...")
         await cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+        print("LOG: LiveKit Agent worker finished (should not reach here).")
     except Exception as e:
         print(f"LOG ERROR: LiveKit worker failed to start: {e}")
+        import traceback
+        print(f"LOG ERROR: {traceback.format_exc()}")
 
 def create_jwt_token(user_id: int, email: str) -> str:
     """Create JWT token for user"""
