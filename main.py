@@ -1,4 +1,4 @@
-
+from agent import entrypoint
 import json
 import os
 from livekit.agents import WorkerOptions, WorkerType, worker
@@ -69,9 +69,7 @@ JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
 # Startup event to initialize database
-@app.on_event("startup")
-async def startup_event():
-    await init_db()
+
 
 
    
