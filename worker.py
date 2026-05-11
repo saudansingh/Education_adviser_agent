@@ -24,7 +24,8 @@ async def start_agent():
     try:
         opts = WorkerOptions(
             entrypoint_fnc=entrypoint,
-            worker_type=WorkerType.ROOM
+            worker_type=WorkerType.ROOM,
+            agent_name="education-adviser-agent",
         )
         print("LOG: Attempting to register with LiveKit Cloud...")
         # This is the line that connects to your LiveKit URL/Keys
