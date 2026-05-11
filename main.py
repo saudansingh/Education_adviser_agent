@@ -186,11 +186,12 @@ async def save_chat_summary(request: dict, current_user: User = Depends(get_curr
     
     if not summary:
         raise HTTPException(status_code=400, detail="Summary is required")
-    
+
+    messages_json = json.dumps(messages)
     chat_session = ChatSession(
         user_id=current_user.id,
         summary=summary,
-        messages=messages
+        messages=messages_json,
     )
     db.add(chat_session)
     await db.commit()
