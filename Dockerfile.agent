@@ -28,4 +28,4 @@ USER appuser
 EXPOSE 8080
 
 # THE KEY FIX: Use python3 and point to worker.py
-CMD ["python3", "worker.py"]
+CMD ["python3", "agent.py"]
