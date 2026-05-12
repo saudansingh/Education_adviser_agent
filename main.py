@@ -63,13 +63,18 @@ JWT_EXPIRATION_HOURS = 24
 
 # Background task to start the LiveKit Agent
 async def start_livekit_worker():
-    """Background task to start the LiveKit Agent using CLI approach"""
+    """Background task to start the LiveKit Agent directly"""
     try:
-        print("LOG: Importing LiveKit CLI and WorkerOptions...")
-        from livekit.agents import cli, WorkerOptions
-        print("LOG: Starting LiveKit Agent using CLI...")
-        await cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
-        print("LOG: LiveKit Agent worker finished (should not reach here).")
+        print("LOG: Importing LiveKit Worker...")
+        from livekit.agents import Worker, WorkerOptions
+        from agent import entrypoint # Ensure this is imported at the top of main.py
+        
+        print("LOG: Starting LiveKit Worker...")
+        # Instantiate and start the worker directly on the current event loop
+        worker = Worker(WorkerOptions(entrypoint_fnc=entrypoint))
+        await worker.start()
+        print("LOG: LiveKit Worker successfully connected and is listening for rooms!")
+        
     except Exception as e:
         print(f"LOG ERROR: LiveKit worker failed to start: {e}")
         import traceback
