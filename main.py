@@ -102,6 +102,7 @@ async def login(request: dict, db: AsyncSession = Depends(get_db)):
     name = request.get("name")  # Optional name field
     if not email:
         raise HTTPException(status_code=400, detail="Email is required")
+        email = email.strip().lower()
     
     # Check if user exists
     result = await db.execute(select(User).where(User.email == email))
