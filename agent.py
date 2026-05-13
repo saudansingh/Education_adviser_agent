@@ -11,7 +11,7 @@ from livekit.agents import (
     cli,
 )
 from livekit.plugins import deepgram, openai, silero
-from database import async_session, load_memory, save_summary, ChatSession, SessionSummary, init_db
+from database import async_session, load_memory, save_summary, SessionSummary, init_db
 from sqlalchemy import select, desc
 
 logger = logging.getLogger("agent")
@@ -64,40 +64,29 @@ Your Approach:
 If no summary is available, start with: 'Hello! I'm Ankur, your education advisor specializing in learning strategies and career guidance. How can I help you achieve your educational goals today?'"""
 
 
-# In agent.py
 async def save_session_summary(summary_id: int | None, user_id: int, conversation_text: str) -> int:
-    """Saves conversation to chat_sessions using TEXT columns."""
+    """Create or update session summary row by ID. Returns row ID."""
     try:
         async with async_session() as session:
             if summary_id:
-                # 1. Update existing row
                 result = await session.execute(
-                    select(ChatSession).where(ChatSession.id == summary_id)
+                    select(SessionSummary).where(SessionSummary.id == summary_id)
                 )
                 existing = result.scalar_one_or_none()
                 if existing:
-                    # You mentioned you want only the summary, 
-                    # so we save the text into the summary column.
                     existing.summary = conversation_text
-                    existing.messages = conversation_text # Since this is now TEXT, this works!
                     await session.commit()
-                    logger.info(f"Successfully updated chat_session {summary_id}")
+                    logger.info(f"Updated summary row {summary_id} for user {user_id}")
                     return summary_id
 
-            # 2. Create new row
-            new_record = ChatSession(
-                user_id=user_id,
-                summary=conversation_text,
-                messages=conversation_text
-            )
-            session.add(new_record)
+            new_summary = SessionSummary(user_id=user_id, summary=conversation_text)
+            session.add(new_summary)
             await session.commit()
-            await session.refresh(new_record)
-            logger.info(f"Successfully created chat_session {new_record.id}")
-            return new_record.id
-            
+            await session.refresh(new_summary)
+            logger.info(f"Created summary row {new_summary.id} for user {user_id}")
+            return new_summary.id
     except Exception as e:
-        logger.error(f"Error during DB save: {e}")
+        logger.error(f"Failed to save session summary: {e}")
         return summary_id or 0
 
 
@@ -166,8 +155,6 @@ async def entrypoint(ctx: JobContext):
     await init_db()
     logger.info(f"Job received for room: {ctx.room.name}")
 
-    await ctx.connect()
-
     # Extract user_id from room name
     user_id = None
     try:
@@ -211,8 +198,6 @@ async def entrypoint(ctx: JobContext):
         agent=assistant,
         room=ctx.room,
     )
-
-    ctx.add_shutdown_callback(lambda: assistant.on_user_turn_completed(session.chat_ctx))
 
     await ctx.wait_for_participant()
 
