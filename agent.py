@@ -1,3 +1,4 @@
+from livekit.plugins import silero
 import logging
 import os
 import json
@@ -185,6 +186,7 @@ async def entrypoint(ctx: JobContext):
 
     assistant = Assistant(memory_summary=memory_summary)
     assistant.user_id = user_id
+    applied_vad = silero.VAD.load()
 
     await ctx.connect()
 
@@ -192,7 +194,9 @@ async def entrypoint(ctx: JobContext):
         stt="deepgram/nova-2",
         llm="openai/gpt-4o-mini",
         tts=deepgram.TTS(model="aura-2-orion-en"),
+        vad=applied_vad,
     )
+    session.min_endpoint_duration = 0.5
 
     await session.start(
         agent=assistant,
