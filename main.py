@@ -1,6 +1,6 @@
+import subprocess
+import json
 import os
-import asyncio
-import contextlib
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from database import init_db, get_db, User, ChatSession
 from sqlalchemy.ext.asyncio import AsyncSession
-from agent import entrypoint
 
 # Load environment variables
 load_dotenv(".env.local")
@@ -23,28 +22,8 @@ DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-production")
 
-# Lifespan context manager for startup/shutdown
-@contextlib.asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    print("LOG: Starting up...")
-    await init_db()
-    print("LOG: Database initialized.")
-    
-    # Start Agent Worker in background
-    print("LOG: About to start LiveKit worker...")
-    try:
-        asyncio.create_task(start_livekit_worker())
-        print("LOG: LiveKit Worker task has been scheduled.")
-    except Exception as e:
-        print(f"LOG ERROR: Failed to schedule LiveKit worker: {e}")
-    
-    yield
-    # Shutdown
-    print("LOG: Shutting down...")
-
 # Configure CORS
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -58,27 +37,19 @@ JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-pro
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
-# Background task to start the LiveKit Agent
-# (moved startup logic to lifespan context manager above)
+# Startup event to initialize database
+@app.on_event("startup")
+async def startup_event():
+    await init_db()
 
-# Background task to start the LiveKit Agent
-async def start_livekit_worker():
-    """Background task to start the LiveKit Agent directly"""
+
+    # 2. Start the Agent Worker in the background
     try:
-        print("LOG: Importing LiveKit Worker...")
-        from livekit.agents import Worker, WorkerOptions
-        from agent import entrypoint # Ensure this is imported at the top of main.py
-        
-        print("LOG: Starting LiveKit Worker...")
-        # Instantiate and start the worker directly on the current event loop
-        worker = Worker(WorkerOptions(entrypoint_fnc=entrypoint))
-        await worker.start()
-        print("LOG: LiveKit Worker successfully connected and is listening for rooms!")
-        
+        # We use Popen so it runs in the background without blocking the API
+        subprocess.Popen(["python", "agent.py", "dev"])
+        print("DEBUG: Agent Worker started successfully in background")
     except Exception as e:
-        print(f"LOG ERROR: LiveKit worker failed to start: {e}")
-        import traceback
-        print(f"LOG ERROR: {traceback.format_exc()}")
+        print(f"DEBUG: Failed to start Agent Worker: {e}")
 
 def create_jwt_token(user_id: int, email: str) -> str:
     """Create JWT token for user"""
@@ -206,49 +177,6 @@ async def save_chat_summary(request: dict, current_user: User = Depends(get_curr
         "created_at": chat_session.created_at.isoformat()
     }
 
-@app.get("/token")
-async def generate_token_get(room_name: str = "ankur-room", identity: str = "web-user"):
-    """Generate a LiveKit token for frontend connection (GET method for testing)"""
-    try:
-        # Check if environment variables are set
-        if not all([LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET]):
-            raise HTTPException(status_code=500, detail="Missing LiveKit environment variables")
-        
-        # Create JWT token with correct LiveKit claims format
-        now = datetime.utcnow()
-        exp = now + timedelta(hours=24)
-        
-        payload = {
-            "iss": LIVEKIT_API_KEY,
-            "sub": identity,
-            "nbf": int(now.timestamp()),
-            "exp": int(exp.timestamp()),
-            "iat": int(now.timestamp()),
-            "jti": f"{identity}-{int(now.timestamp())}",
-            "identity": identity,
-            "name": identity,
-            "metadata": "",
-            "video": {
-                "roomJoin": True,
-                "room": room_name
-            },
-            "audio": {
-                "roomJoin": True,
-                "room": room_name
-            },
-            "data": {
-                "roomJoin": True,
-                "room": room_name
-            }
-        }
-        
-        jwt_token = jwt.encode(payload, LIVEKIT_API_SECRET, algorithm="HS256")
-        
-        return {"token": jwt_token}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Token generation failed: {str(e)}")
 
 @app.post("/token")
 async def generate_token(request: dict = None, current_user: User = Depends(get_current_user)):
@@ -274,6 +202,12 @@ async def generate_token(request: dict = None, current_user: User = Depends(get_
         now = datetime.utcnow()
         exp = now + timedelta(hours=24)
         
+        # DEBUG: Log metadata generation
+        metadata_json = json.dumps({"user_id": current_user.id, "email": current_user.email})
+        print(f"DEBUG: Generating token with metadata: {metadata_json}")
+        print(f"DEBUG: current_user.id: {current_user.id}, type: {type(current_user.id)}")
+        print(f"DEBUG: current_user.email: {current_user.email}")
+        
         payload = {
             "iss": LIVEKIT_API_KEY,
             "sub": identity,
@@ -283,7 +217,7 @@ async def generate_token(request: dict = None, current_user: User = Depends(get_
             "jti": f"{identity}-{int(now.timestamp())}",
             "identity": identity,
             "name": identity,
-            "metadata": f"user_id:{current_user.id},email:{current_user.email}",
+            "metadata": metadata_json,
             "video": {
                 "roomJoin": True,
                 "room": room_name
@@ -298,6 +232,8 @@ async def generate_token(request: dict = None, current_user: User = Depends(get_
             }
         }
         
+        print(f"DEBUG: Full payload metadata field: {payload['metadata']}")
+        
         jwt_token = jwt.encode(payload, LIVEKIT_API_SECRET, algorithm="HS256")
         
         return {"token": jwt_token, "room_name": room_name}
@@ -305,6 +241,7 @@ async def generate_token(request: dict = None, current_user: User = Depends(get_
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Token generation failed: {str(e)}")
+
 
 @app.get("/health")
 async def health_check():
@@ -315,17 +252,19 @@ async def health_check():
 async def agent_status():
     """Check if agent worker is running"""
     try:
-        return {"agent_status": "agent_worker_should_be_running", "note": "Check GCP logs for agent worker"}
+        # This is a basic check - in production, agent should be running
+        return {"agent_status": "agent_worker_should_be_running", "note": "Check Railway logs for agent worker"}
     except Exception as e:
         return {"agent_status": "unknown", "error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn
+    port = int(os.environ.get("PORT", 8080))
     
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8080,
-        reload=True,
+        port=port,
+        reload=False,
         log_level="info"
     )
