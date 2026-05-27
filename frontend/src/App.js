@@ -10,11 +10,13 @@ import {
   User, 
   GraduationCap,
   Users,
-  Activity
+  Activity,
+  ShieldAlert
 } from 'lucide-react';
 import { RoomEvent, Room, Track } from 'livekit-client';
 import './App.css';
 
+// Added techStack identifiers to branch out streaming frameworks smoothly
 const agents = [
   {
     id: 'ankur',
@@ -23,7 +25,18 @@ const agents = [
     description: 'Specialized in learning strategies and career guidance',
     icon: GraduationCap,
     color: 'bg-blue-500',
-    status: 'available'
+    status: 'available',
+    techStack: 'livekit'
+  },
+  {
+    id: 'insurance_advisor',
+    name: 'Insurance Advisor',
+    title: 'Risk & Insurance Expert',
+    description: 'Specialized in ultra-concise policy advice and clear guidance',
+    icon: ShieldAlert,
+    color: 'bg-emerald-600',
+    status: 'available',
+    techStack: 'raw-websocket'
   }
 ];
 
@@ -36,7 +49,7 @@ function App() {
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
-    const [audioTrack, setAudioTrack] = useState(null);
+  const [audioTrack, setAudioTrack] = useState(null);
   const [micPermission, setMicPermission] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState('');
@@ -45,14 +58,23 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isTokenLoading, setIsTokenLoading] = useState(false);
   
+  // Framework Instances Refs
   const roomRef = useRef(null);
   const audioElementRef = useRef(null);
+  
+  // Custom Web Audio API Context / WebSocket Tracker references for Agent 2
+  const rawSocketRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const scriptProcessorRef = useRef(null);
+  const nextStartTimeRef = useRef(0);
+  const isMutedRef = useRef(false); // Helps background processor lookups stay synchronized
 
-  // LiveKit server URL
+  // Target Endpoint configuration references
   const livekitUrl = process.env.REACT_APP_LIVEKIT_URL || 'wss://voice-agent-tr1nwg9p.osingapore1b.production.livekit.cloud';
+  const gcpInsuranceWsUrl = process.env.REACT_APP_GCP_INSURANCE_WS_URL || 'wss://your-gcp-app-url.a.run.app/insurance-agent';
 
   useEffect(() => {
-    // Check if user is already logged in from localStorage
     const storedToken = localStorage.getItem('jwtToken');
     const storedEmail = localStorage.getItem('userEmail');
     if (storedToken && storedEmail) {
@@ -61,15 +83,21 @@ function App() {
       setIsLoggedIn(true);
       loadChatHistory(storedToken);
     } else {
-      // Clear any partial login data
       localStorage.removeItem('jwtToken');
       localStorage.removeItem('userEmail');
       setIsLoggedIn(false);
     }
   }, []);
 
+  // Monitor switching between sidebar rows to clear active sessions safely
   useEffect(() => {
-    if (selectedAgent) {
+    cleanupAllConnections();
+    setMessages([]);
+    setConnectionStatus('disconnected');
+    setIsConnected(false);
+
+    // Only fire LiveKit token generation routines if it uses LiveKit
+    if (selectedAgent && selectedAgent.techStack === 'livekit') {
       generateToken();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -77,11 +105,38 @@ function App() {
 
   useEffect(() => {
     return () => {
-      if (roomRef.current) {
-        roomRef.current.disconnect();
-      }
+      cleanupAllConnections();
     };
   }, []);
+
+  // Shared Cleanup utility to terminate resources gracefully
+  const cleanupAllConnections = () => {
+    if (roomRef.current) {
+      roomRef.current.disconnect();
+      roomRef.current = null;
+    }
+    if (rawSocketRef.current) {
+      rawSocketRef.current.close();
+      rawSocketRef.current = null;
+    }
+    if (scriptProcessorRef.current) {
+      scriptProcessorRef.current.disconnect();
+      scriptProcessorRef.current = null;
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      mediaStreamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      if (audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+      }
+      audioContextRef.current = null;
+    }
+    nextStartTimeRef.current = 0;
+    setAudioTrack(null);
+    setIsSpeaking(false);
+  };
 
   const loadChatHistory = async (token) => {
     try {
@@ -97,10 +152,7 @@ function App() {
       if (response.ok) {
         const data = await response.json();
         setChatHistory(data.sessions || []);
-        console.log('Loaded chat history:', data.sessions);
       } else if (response.status === 401 || response.status === 403) {
-        // Authentication failed, clear localStorage and show login
-        console.error('Authentication failed, clearing session');
         localStorage.removeItem('jwtToken');
         localStorage.removeItem('userEmail');
         setJwtToken('');
@@ -115,14 +167,11 @@ function App() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
     try {
       const API_URL = process.env.REACT_APP_API_URL || 'https://ankur-280807492599.asia-south2.run.app';
       const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userEmail }),
       });
       
@@ -155,50 +204,34 @@ function App() {
   };
 
   const generateToken = async () => {
-    if (!jwtToken) {
-      console.error('No JWT token available');
-      return;
-    }
-    
+    if (!jwtToken) return;
     setIsTokenLoading(true);
-    
     try {
-      // Use environment variable for API URL
       const API_URL = process.env.REACT_APP_API_URL || 'https://ankur-280807492599.asia-south2.run.app';
-      
       const response = await fetch(`${API_URL}/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${jwtToken}`
         },
-        body: JSON.stringify({
-          identity: `user-${userEmail}`
-        }),
+        body: JSON.stringify({ identity: `user-${userEmail}` }),
       });
       
       if (response.ok) {
         const data = await response.json();
         setToken(data.token);
-        console.log('Generated token from API');
-        // Auto-connect after token is generated
-        setTimeout(() => handleConnect(), 500);
+        // Delay connection to guarantee the token propagates cleanly
+        setTimeout(() => handleConnect(data.token), 500);
       } else if (response.status === 401 || response.status === 403 || response.status === 405) {
-        // Authentication failed, clear localStorage and show login
-        console.error('Authentication failed, clearing session');
         localStorage.removeItem('jwtToken');
         localStorage.removeItem('userEmail');
         setJwtToken('');
         setUserEmail('');
         setIsLoggedIn(false);
         alert('Session expired. Please login again.');
-      } else {
-        console.error('Failed to generate token from API');
-        alert('Failed to generate token. Please try again.');
       }
     } catch (error) {
       console.error('Error generating token:', error);
-      alert('Failed to generate token. Please try again.');
     } finally {
       setIsTokenLoading(false);
     }
@@ -217,49 +250,49 @@ function App() {
     }
   };
 
-  const handleConnect = async () => {
-    if (!token) {
-      console.error('No token available');
+  // Main Orchestrator for initiating audio tracking setups
+  const handleConnect = async (passedToken) => {
+    const activeToken = passedToken || token;
+    if (!selectedAgent) return;
+
+    const hasPermission = await requestMicrophonePermission();
+    if (!hasPermission) {
+      alert('Please allow microphone access to use voice features');
       return;
     }
 
-    try {
-      // Request microphone permission first
-      const hasPermission = await requestMicrophonePermission();
-      if (!hasPermission) {
-        alert('Please allow microphone access to use voice features');
-        return;
-      }
+    // BRANCH 1: Route connection to LiveKit Engine if requested
+    if (selectedAgent.techStack === 'livekit') {
+      if (!activeToken) return;
+      await connectToLiveKit(activeToken);
+    } 
+    // BRANCH 2: Bypasses LiveKit, routes directly to Custom GCP Engine
+    else if (selectedAgent.techStack === 'raw-websocket') {
+      await connectToRawWebSocketAgent();
+    }
+  };
 
+  const connectToLiveKit = async (targetToken) => {
+    try {
       setConnectionStatus('connecting');
-      
-      // Create and connect to LiveKit room
       const newRoom = new Room({
         adaptiveStream: true,
         dynacast: true,
-        audioCaptureDefaults: {
-          autoGainControl: true,
-          echoCancellation: true,
-          noiseSuppression: true,
-        },
+        audioCaptureDefaults: { autoGainControl: true, echoCancellation: true, noiseSuppression: true },
       });
 
-      // Set up event listeners
-      newRoom.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-        console.log('Track subscribed:', track.kind);
+      newRoom.on(RoomEvent.TrackSubscribed, (track) => {
         if (track.kind === Track.Kind.Audio) {
           const audioElement = audioElementRef.current;
           if (audioElement) {
             track.attach(audioElement);
             setAudioTrack(track);
             setIsSpeaking(true);
-            console.log('Agent audio track attached');
           }
         }
       });
 
       newRoom.on(RoomEvent.TrackUnsubscribed, (track) => {
-        console.log('Track unsubscribed');
         if (track === audioTrack) {
           track.detach();
           setAudioTrack(null);
@@ -268,7 +301,6 @@ function App() {
       });
 
       newRoom.on(RoomEvent.Disconnected, () => {
-        console.log('Room disconnected');
         setIsConnected(false);
         setConnectionStatus('disconnected');
         setAudioTrack(null);
@@ -276,56 +308,185 @@ function App() {
       });
 
       newRoom.on(RoomEvent.Connected, () => {
-        console.log('Room connected, enabling audio');
-        // Enable microphone after connecting
         newRoom.localParticipant.setMicrophoneEnabled(true);
-        
-        // Prepare and set participant metadata with chat history after connecting
         const recentChatHistory = chatHistory.slice(0, 3).map(session => session.summary).join('\n');
-        const metadata = JSON.stringify({
-          email: userEmail,
-          chatHistory: recentChatHistory
-        });
+        const metadata = JSON.stringify({ email: userEmail, chatHistory: recentChatHistory });
         newRoom.localParticipant.setMetadata(metadata);
       });
 
-      // Connect to the room
-      await newRoom.connect(livekitUrl, token);
-      
+      await newRoom.connect(livekitUrl, targetToken);
       roomRef.current = newRoom;
       setIsConnected(true);
       setConnectionStatus('connected');
-      setIsMuted(false); // Start with microphone enabled
-      
-      console.log('Connected to LiveKit room successfully');
+      setIsMuted(false);
+      isMutedRef.current = false;
     } catch (error) {
-      console.error('Failed to connect to LiveKit room:', error);
+      console.error('Failed LiveKit session creation:', error);
       setConnectionStatus('error');
-      alert('Failed to connect to voice agent. Please make sure your agent is running in dev mode.');
     }
   };
 
+  const connectToRawWebSocketAgent = async () => {
+    try {
+      setConnectionStatus('connecting');
+
+      // 1. Spinning up Native browser Audio pipeline targeted directly to 16kHz
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+      audioContextRef.current = audioCtx;
+      nextStartTimeRef.current = audioCtx.currentTime;
+
+      // 2. Spinning up the customized secure gateway WebSocket
+      const ws = new WebSocket(gcpInsuranceWsUrl);
+      ws.binaryType = "arraybuffer";
+      rawSocketRef.current = ws;
+
+      ws.onopen = async () => {
+        setIsConnected(true);
+        setConnectionStatus('connected');
+        setIsMuted(false);
+        isMutedRef.current = false;
+        
+        // Connect system hardware microphone nodes
+        await setupBrowserMicrophonePipeline();
+      };
+
+      ws.onmessage = async (event) => {
+        if (typeof event.data === 'string') {
+          const payload = JSON.parse(event.data);
+          
+          if (payload.type === 'interrupt') {
+            // Drop playback timeline syncing constraints
+            nextStartTimeRef.current = audioCtx.currentTime; 
+            setIsSpeaking(false);
+          } else if (payload.type === 'transcription') {
+            const responseData = payload.data;
+            const textSegment = responseData.text || responseData.content;
+            if (textSegment) {
+              appendStreamingAgentText(textSegment);
+            }
+          }
+        } else {
+          // Process Binary Stream Audio Data packets coming back from GCP (24kHz format)
+          playRawAudioBufferChunk(event.data);
+        }
+      };
+
+      ws.onerror = (err) => {
+        console.error("GCP WebSocket channel dropped:", err);
+        setConnectionStatus('error');
+      };
+
+      ws.onclose = () => {
+        setIsConnected(false);
+        setConnectionStatus('disconnected');
+        setIsSpeaking(false);
+      };
+
+    } catch (error) {
+      console.error('Failed to construct Custom GCP session pipeline:', error);
+      setConnectionStatus('error');
+    }
+  };
+
+  const setupBrowserMicrophonePipeline = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+
+      const source = audioContextRef.current.createMediaStreamSource(stream);
+      // Constructing processing node configuration targeting a chunk sizes of 2048 blocks
+      const processor = audioContextRef.current.createScriptProcessor(2048, 1, 1);
+      
+      source.connect(processor);
+      processor.connect(audioContextRef.current.destination);
+      scriptProcessorRef.current = processor;
+
+      processor.onaudioprocess = (e) => {
+        if (!rawSocketRef.current || rawSocketRef.current.readyState !== WebSocket.OPEN) return;
+        if (isMutedRef.current) return; // Disallow audio pipelines streaming if explicitly muted
+
+        const inputBuffer = e.inputBuffer;
+        const float32Data = inputBuffer.getChannelData(0);
+
+        // Map native browser floats down to standard signed 16-bit array format frames
+        const int16Buffer = new Int16Array(float32Data.length);
+        for (let i = 0; i < float32Data.length; i++) {
+          let sample = Math.max(-1, Math.min(1, float32Data[i]));
+          int16Buffer[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+        }
+
+        // Send raw mic buffers directly to GCP instance
+        rawSocketRef.current.send(int16Buffer.buffer);
+      };
+    } catch (err) {
+      console.error("Hardware Microphone connection pipeline aborted:", err);
+    }
+  };
+
+  const playRawAudioBufferChunk = (arrayBuffer) => {
+    const audioCtx = audioContextRef.current;
+    if (!audioCtx || audioCtx.state === 'closed') return;
+
+    // Map 16-bit binary streams back out to structural floating frames
+    const int16Array = new Int16Array(arrayBuffer);
+    const float32Array = new Float32Array(int16Array.length);
+    for (let i = 0; i < int16Array.length; i++) {
+      float32Array[i] = int16Array[i] / 32768.0;
+    }
+
+    // Create an audio node buffer matched to Gemini's 24000Hz output rate
+    const audioBuffer = audioCtx.createBuffer(1, float32Array.length, 24000);
+    audioBuffer.getChannelData(0).set(float32Array);
+
+    const bufferSource = audioCtx.createBufferSource();
+    bufferSource.buffer = audioBuffer;
+    bufferSource.connect(audioCtx.destination);
+
+    // Schedule chunks sequentially without gaps
+    const startTime = Math.max(nextStartTimeRef.current, audioCtx.currentTime);
+    bufferSource.start(startTime);
+    nextStartTimeRef.current = startTime + audioBuffer.duration;
+
+    setIsSpeaking(true);
+    bufferSource.onended = () => {
+      // Toggle speaking visualizer off when playback stream catches up
+      if (audioCtx.currentTime >= nextStartTimeRef.current - 0.05) {
+        setIsSpeaking(false);
+      }
+    };
+  };
+
+  const appendStreamingAgentText = (textSegment) => {
+    setMessages(prev => {
+      if (prev.length > 0 && prev[prev.length - 1].sender === 'agent') {
+        const updated = [...prev];
+        updated[updated.length - 1].text += textSegment;
+        return updated;
+      } else {
+        return [...prev, {
+          id: Date.now(),
+          text: textSegment,
+          sender: 'agent',
+          timestamp: new Date().toLocaleTimeString()
+        }];
+      }
+    });
+  };
+
   const handleDisconnect = async () => {
-    // Save chat summary before disconnecting
     if (messages.length > 0) {
       const summary = messages.map(m => `${m.sender}: ${m.text}`).join('\n');
       await saveChatSummary(summary);
     }
-    
-    if (roomRef.current) {
-      roomRef.current.disconnect();
-    }
+    cleanupAllConnections();
     setIsConnected(false);
     setConnectionStatus('disconnected');
     setSelectedAgent(null);
     setMessages([]);
-    setAudioTrack(null);
-    setIsSpeaking(false);
   };
 
   const saveChatSummary = async (summary) => {
     if (!jwtToken) return;
-    
     try {
       const API_URL = process.env.REACT_APP_API_URL || 'https://ankur-280807492599.asia-south2.run.app';
       const response = await fetch(`${API_URL}/chat-summary`, {
@@ -334,14 +495,9 @@ function App() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${jwtToken}`
         },
-        body: JSON.stringify({
-          summary: summary,
-          messages: messages
-        }),
+        body: JSON.stringify({ summary: summary, messages: messages }),
       });
-      
       if (response.ok) {
-        console.log('Chat summary saved');
         loadChatHistory(jwtToken);
       }
     } catch (error) {
@@ -350,15 +506,18 @@ function App() {
   };
 
   const toggleMute = () => {
-    if (roomRef.current) {
-      if (isMuted) {
-        // Unmute by enabling the microphone track
-        roomRef.current.localParticipant.setMicrophoneEnabled(true);
-      } else {
-        // Mute by disabling the microphone track
-        roomRef.current.localParticipant.setMicrophoneEnabled(false);
-      }
-      setIsMuted(!isMuted);
+    if (!isConnected || !selectedAgent) return;
+
+    if (selectedAgent.techStack === 'livekit' && roomRef.current) {
+      const nextMuteState = !isMuted;
+      roomRef.current.localParticipant.setMicrophoneEnabled(!nextMuteState);
+      setIsMuted(nextMuteState);
+      isMutedRef.current = nextMuteState;
+    } else if (selectedAgent.techStack === 'raw-websocket') {
+      // Mute the local state reference that blocks streaming microphone cycles
+      const nextMuteState = !isMuted;
+      setIsMuted(nextMuteState);
+      isMutedRef.current = nextMuteState;
     }
   };
 
@@ -370,21 +529,26 @@ function App() {
         sender: 'user',
         timestamp: new Date().toLocaleTimeString()
       };
-      setMessages([...messages, newMessage]);
+      setMessages(prev => [...prev, newMessage]);
       setInputMessage('');
 
-      // Simulate agent response
-      setTimeout(() => {
-        const agentResponse = {
-          id: Date.now() + 1,
-          text: `Hello! I'm ${selectedAgent?.name}, ${selectedAgent?.title}. ${selectedAgent?.description}. How can I help you today?`,
-          sender: 'agent',
-          timestamp: new Date().toLocaleTimeString()
-        };
-        setMessages(prev => [...prev, agentResponse]);
-        setIsSpeaking(true);
-        setTimeout(() => setIsSpeaking(false), 3000);
-      }, 1000);
+      // Send via text fallback wrapper channel if WebSocket is connected
+      if (selectedAgent.techStack === 'raw-websocket' && rawSocketRef.current?.readyState === WebSocket.OPEN) {
+        rawSocketRef.current.send(JSON.stringify({ text: inputMessage }));
+      } else {
+        // Fallback simulation interface for local UI mock validation
+        setTimeout(() => {
+          const agentResponse = {
+            id: Date.now() + 1,
+            text: `Hello! I'm ${selectedAgent?.name}. How can I assist you with your queries?`,
+            sender: 'agent',
+            timestamp: new Date().toLocaleTimeString()
+          };
+          setMessages(prev => [...prev, agentResponse]);
+          setIsSpeaking(true);
+          setTimeout(() => setIsSpeaking(false), 3000);
+        }, 1000);
+      }
     }
   };
 
@@ -394,7 +558,6 @@ function App() {
     }
   };
 
-  // Show login screen if not logged in
   if (!isLoggedIn) {
     return (
       <div className="flex h-screen bg-gradient-to-br from-slate-900 to-slate-800 items-center justify-center">
@@ -439,10 +602,9 @@ function App() {
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-900 to-slate-800">
-      {/* Hidden audio element for agent voice */}
       <audio ref={audioElementRef} autoPlay playsInline />
       
-      {/* Sidebar */}
+      {/* Sidebar Layout Section */}
       <div className="w-80 bg-slate-800 border-r border-slate-700 flex flex-col">
         <div className="p-6 border-b border-slate-700">
           <div className="flex items-center space-x-3">
@@ -499,10 +661,7 @@ function App() {
               <User className="w-4 h-4 text-slate-400" />
               <span className="text-xs text-slate-400">Logged in as:</span>
             </div>
-            <button
-              onClick={handleLogout}
-              className="text-xs text-red-400 hover:text-red-300"
-            >
+            <button onClick={handleLogout} className="text-xs text-red-400 hover:text-red-300">
               Logout
             </button>
           </div>
@@ -528,11 +687,10 @@ function App() {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Streaming Display Container Area */}
       <div className="flex-1 flex flex-col">
         {selectedAgent ? (
           <>
-            {/* Header */}
             <div className="bg-slate-800 border-b border-slate-700 p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -555,7 +713,7 @@ function App() {
                   </div>
                   {!isConnected ? (
                     <button
-                      onClick={handleConnect}
+                      onClick={() => handleConnect(null)}
                       disabled={isTokenLoading || connectionStatus === 'connecting'}
                       className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg flex items-center space-x-2 transition-colors"
                     >
@@ -575,7 +733,6 @@ function App() {
               </div>
             </div>
 
-            {/* Chat Area */}
             <div className="flex-1 flex flex-col">
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {messages.length === 0 ? (
@@ -590,9 +747,7 @@ function App() {
                       className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       <div className={`max-w-2xl px-4 py-3 rounded-lg ${
-                        message.sender === 'user'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-slate-700 text-white'
+                        message.sender === 'user' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-white'
                       }`}>
                         <p className="text-sm">{message.text}</p>
                         <p className="text-xs opacity-70 mt-1">{message.timestamp}</p>
@@ -602,7 +757,6 @@ function App() {
                 )}
               </div>
 
-              {/* Voice Controls */}
               <div className="bg-slate-800 border-t border-slate-700 p-6">
                 <div className="flex items-center space-x-4">
                   <button
@@ -619,14 +773,11 @@ function App() {
                     {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
                   </button>
 
-                  {/* Audio Visualization */}
                   <div className="flex-1 flex items-center justify-center space-x-1">
                     {[1, 2, 3, 4, 5].map((i) => (
                       <div
                         key={i}
-                        className={`w-1 bg-blue-500 rounded-full audio-bar ${
-                          isSpeaking ? '' : 'opacity-30'
-                        }`}
+                        className={`w-1 bg-blue-500 rounded-full audio-bar ${isSpeaking ? '' : 'opacity-30'}`}
                         style={{ height: isSpeaking ? '20px' : '4px' }}
                       />
                     ))}
@@ -652,7 +803,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* Status Information */}
                 <div className="mt-4 p-3 bg-slate-700 rounded-lg">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-400">Microphone:</span>
@@ -663,14 +813,13 @@ function App() {
                   <div className="flex items-center justify-between text-sm mt-1">
                     <span className="text-slate-400">Voice Status:</span>
                     <span className={connectionStatus === 'connected' ? 'text-green-400' : 
-                                  connectionStatus === 'connecting' ? 'text-yellow-400' : 
-                                  connectionStatus === 'error' ? 'text-red-400' : 'text-slate-400'}>
+                                    connectionStatus === 'connecting' ? 'text-yellow-400' : 
+                                    connectionStatus === 'error' ? 'text-red-400' : 'text-slate-400'}>
                       {connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1)}
                     </span>
                   </div>
                 </div>
 
-                {/* Text Input */}
                 <div className="mt-4 flex space-x-2">
                   <input
                     type="text"
@@ -687,9 +836,7 @@ function App() {
                     onClick={handleSendMessage}
                     disabled={!isConnected}
                     className={`px-6 py-2 rounded-lg transition-colors ${
-                      isConnected 
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                        : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                      isConnected ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-700 text-slate-500 cursor-not-allowed'
                     }`}
                   >
                     Send
