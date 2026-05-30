@@ -22,6 +22,8 @@ DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-production")
 
+AGENT_ID = "ankur-voice-agent"
+
 # Configure CORS
 app = FastAPI()
 app.add_middleware(
@@ -136,7 +138,9 @@ async def get_chat_history(current_user: User = Depends(get_current_user), db: A
     """Get chat history for current user"""
     result = await db.execute(
         select(ChatSession)
-        .where(ChatSession.user_id == current_user.id)
+        .where(ChatSession.user_id == current_user.id,
+               ChatSession.agent_id == AGENT_ID
+              )
         .order_by(ChatSession.created_at.desc())
     )
     sessions = result.scalars().all()
@@ -165,6 +169,7 @@ async def save_chat_summary(request: dict, current_user: User = Depends(get_curr
     
     chat_session = ChatSession(
         user_id=current_user.id,
+        agent_id = AGENT_ID,
         summary=summary,
         messages=messages
     )
