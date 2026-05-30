@@ -79,14 +79,16 @@ async def get_db():
         finally:
             await session.close()
 
-async def load_memory(user_id: int, session: AsyncSession) -> str | None:
+async def load_memory(user_id: int, agent_id: str, session: AsyncSession) -> str | None:
     """Load the latest conversation summary for a user"""
     print(f"DEBUG: load_memory called with user_id={user_id}, type={type(user_id)}")
     try:
         from sqlalchemy import select, desc
         result = await session.execute(
             select(SessionSummary)
-            .where(SessionSummary.user_id == user_id)
+            .where(SessionSummary.user_id == user_id,
+                   SessionSummary.agent_id == agent_id
+                  )
             .order_by(desc(SessionSummary.session_date))
             .limit(1)
         )
