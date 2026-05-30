@@ -18,6 +18,7 @@ from sqlalchemy import select, desc
 logger = logging.getLogger("agent")
 
 load_dotenv(".env.local")
+AGENT_ID = "education-adviser-agent"
 
 INSTRUCTIONS = """You are Ankur, a knowledgeable and encouraging Education Advisor AI assistant. Your name is Ankur and you specialize in educational guidance, career planning, and learning strategies.
 
@@ -71,7 +72,7 @@ async def save_session_summary(summary_id: int | None, user_id: int, conversatio
         async with async_session() as session:
             if summary_id:
                 result = await session.execute(
-                    select(SessionSummary).where(SessionSummary.id == summary_id)
+                    select(SessionSummary).where(SessionSummary.id == summary_id, SessionSummary.agent_id == AGENT_ID)
                 )
                 existing = result.scalar_one_or_none()
                 if existing:
@@ -80,7 +81,7 @@ async def save_session_summary(summary_id: int | None, user_id: int, conversatio
                     logger.info(f"Updated summary row {summary_id} for user {user_id}")
                     return summary_id
 
-            new_summary = SessionSummary(user_id=user_id, summary=conversation_text)
+            new_summary = SessionSummary(user_id=user_id, summary=conversation_text, agent_id=AGENT_ID)
             session.add(new_summary)
             await session.commit()
             await session.refresh(new_summary)
@@ -173,7 +174,7 @@ async def entrypoint(ctx: JobContext):
     if user_id:
         logger.info(f"Attempting to load memory for user_id={user_id}")
         async with async_session() as session:
-            raw_summary = await load_memory(user_id, session)
+            raw_summary = await load_memory(user_id, AGENT_ID, session)
         if raw_summary and 'ChatContext object at' not in raw_summary:
             memory_summary = raw_summary
             logger.info(f"Loaded memory_summary: {memory_summary[:100]}...")
