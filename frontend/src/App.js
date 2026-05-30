@@ -335,8 +335,11 @@ function App() {
       audioContextRef.current = audioCtx;
       nextStartTimeRef.current = audioCtx.currentTime;
 
+      // 🛠️ CHANGED: Append email as a query param so the backend can lookup/save context history
+      const authenticatedWsUrl = `${gcpInsuranceWsUrl}?email=${encodeURIComponent(userEmail)}`;
+      
       // 2. Spinning up the customized secure gateway WebSocket
-      const ws = new WebSocket(gcpInsuranceWsUrl);
+      const ws = new WebSocket(authenticatedWsUrl);
       ws.binaryType = "arraybuffer";
       rawSocketRef.current = ws;
 
@@ -354,16 +357,13 @@ function App() {
         if (typeof event.data === 'string') {
           const payload = JSON.parse(event.data);
           
-          if (payload.type === 'interrupt') {
+          // 🛠️ CHANGED: Check directly for the 'text' property sent by websocket.send_json({"text": ...})
+          if (payload.text) {
+            appendStreamingAgentText(payload.text);
+          } else if (payload.type === 'interrupt') {
             // Drop playback timeline syncing constraints
             nextStartTimeRef.current = audioCtx.currentTime; 
             setIsSpeaking(false);
-          } else if (payload.type === 'transcription') {
-            const responseData = payload.data;
-            const textSegment = responseData.text || responseData.content;
-            if (textSegment) {
-              appendStreamingAgentText(textSegment);
-            }
           }
         } else {
           // Process Binary Stream Audio Data packets coming back from GCP (24kHz format)
@@ -566,7 +566,7 @@ function App() {
             <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4">
               <GraduationCap className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">Ankur Voice Agent</h1>
+            <h1 className="text-2xl font-bold text-white mb-2">Voice Agents</h1>
             <p className="text-slate-400">Enter your email to start</p>
           </div>
           
