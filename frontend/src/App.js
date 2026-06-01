@@ -12,16 +12,21 @@ import {
   Users,
   Activity,
   ShieldAlert,
+  // Added standard Lucide icons for the Tech Stack matrix mapping
   Info,
   X,
-  Layers,
-  Sparkles,
+  Cpu,
+  Terminal,
+  Radio,
+  Bot,
+  Zap,
+  Sliders,
   Send
 } from 'lucide-react';
 import { RoomEvent, Room, Track } from 'livekit-client';
 import './App.css';
 
-// Enriched with dynamic color specifications and blueprint data profiles for the pop-up modal
+// Enhanced dataset with explicit architectural layers and corresponding symbol indicators
 const agents = [
   {
     id: 'ankur',
@@ -29,17 +34,17 @@ const agents = [
     title: 'Education Advisor',
     description: 'Specialized in learning strategies and career guidance',
     icon: GraduationCap,
-    color: 'from-cyan-500 to-blue-500',
-    glowColor: 'rgba(6, 182, 212, 0.25)',
-    status: 'available',
+    color: 'bg-blue-500',
     techStack: 'livekit',
-    stackDetails: {
-      framework: 'LiveKit Agents SDK Pipeline',
-      stt: 'Deepgram Nova-2 Engine',
-      llm: 'OpenAI GPT-4o-Mini Context Node',
-      tts: 'Deepgram Aura Voice Generation',
-      vad: 'Silero Intelligent VAD Core'
-    }
+    status: 'available',
+    // Structural architectural data for the popup panel
+    stackLayers: [
+      { layer: 'Orchestrator Framework', name: 'LiveKit Agents SDK Pipeline', icon: Radio, tint: 'text-blue-400' },
+      { layer: 'Speech-To-Text (STT)', name: 'Deepgram Nova-2 Streaming Engine', icon: Mic, tint: 'text-cyan-400' },
+      { layer: 'Language Processing Model', name: 'OpenAI GPT-4o-Mini Context Node', icon: Bot, tint: 'text-purple-400' },
+      { layer: 'Text-To-Speech (TTS)', name: 'Deepgram Aura Voice Generation', icon: Volume2, tint: 'text-emerald-400' },
+      { layer: 'Voice Activity Detection', name: 'Silero Intelligent VAD Engine', icon: Sliders, tint: 'text-amber-400' }
+    ]
   },
   {
     id: 'insurance_advisor',
@@ -47,17 +52,16 @@ const agents = [
     title: 'Risk & Insurance Expert',
     description: 'Specialized in ultra-concise policy advice and clear guidance',
     icon: ShieldAlert,
-    color: 'from-emerald-500 to-teal-500',
-    glowColor: 'rgba(16, 185, 129, 0.25)',
-    status: 'available',
+    color: 'bg-emerald-600',
     techStack: 'raw-websocket',
-    stackDetails: {
-      framework: 'FastAPI Ultra-Low Latency Asynchronous Core',
-      stt: 'Native Browser Web Audio Stream Capture (PCM 16kHz)',
-      llm: 'Google Gemini 2.5 Flash Multimodal Instance',
-      tts: 'Gemini Live Native Synthesis Data Nodes',
-      vad: 'Stream Processing Queue Handler'
-    }
+    status: 'available',
+    // Structural architectural data for the popup panel
+    stackLayers: [
+      { layer: 'Asynchronous Core Gateway', name: 'FastAPI Low-Latency Async Engine', icon: Terminal, tint: 'text-emerald-400' },
+      { layer: 'Microphone Stream Parser', name: 'Browser Web Audio Context (PCM 16kHz)', icon: Sliders, tint: 'text-teal-400' },
+      { layer: 'Context Inference Model', name: 'Google Gemini 2.5 Flash Engine Instance', icon: Cpu, tint: 'text-indigo-400' },
+      { layer: 'Native Audio Synthesis Data', name: 'Gemini Live Multimodal Streams (24kHz)', icon: Zap, tint: 'text-yellow-400' }
+    ]
   }
 ];
 
@@ -79,8 +83,8 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isTokenLoading, setIsTokenLoading] = useState(false);
   
-  // 🛠️ UI Enhancement State: Tech Stack Modal Open/Close Tracker
-  const [isTechStackOpen, setIsTechStackOpen] = useState(false);
+  // 🛠️ NEW: Modal window state manager
+  const [isTechStackModalOpen, setIsTechStackModalOpen] = useState(false);
   
   // Framework Instances Refs
   const roomRef = useRef(null);
@@ -582,47 +586,45 @@ function App() {
     }
   };
 
-  // 1. COOLING STYLE DESIGN: Frost/Deep Oceanic Gradient Login Gateway
   if (!isLoggedIn) {
     return (
-      <div className="flex h-screen bg-gradient-to-tr from-slate-950 via-indigo-950 to-slate-900 items-center justify-center relative overflow-hidden">
-        {/* Soft Decorative Ambient Lighting Backdrops */}
-        <div className="absolute w-[500px] h-[500px] bg-cyan-500/10 blur-[120px] -top-32 -left-32 rounded-full pointer-events-none" />
-        <div className="absolute w-[500px] h-[500px] bg-indigo-500/10 blur-[120px] -bottom-32 -right-32 rounded-full pointer-events-none" />
+      <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 items-center justify-center relative overflow-hidden">
+        <div className="absolute w-[400px] h-[400px] bg-blue-500/10 blur-[100px] -top-20 -left-20 rounded-full pointer-events-none" />
+        <div className="absolute w-[400px] h-[400px] bg-emerald-500/5 blur-[100px] -bottom-20 -right-20 rounded-full pointer-events-none" />
         
-        <div className="bg-slate-900/60 backdrop-blur-xl p-8 rounded-2xl border border-slate-800/60 shadow-[0_12px_40px_rgba(0,0,0,0.5)] max-w-md w-full mx-4 transition-all duration-300 hover:border-slate-700/60 z-10">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_rgba(6,182,212,0.3)]">
-              <Sparkles className="w-8 h-8 text-white" />
+        <div className="bg-slate-900/60 backdrop-blur-xl p-8 rounded-2xl border border-slate-800/80 shadow-2xl max-w-md w-full mx-4 relative z-10">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl">
+              <GraduationCap className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-cyan-200 tracking-tight mb-2">Voice Agents</h1>
-            <p className="text-slate-400 text-sm">Enter your email to initialize memory matrix</p>
+            <h1 className="text-2xl font-bold text-white tracking-wide mb-1">Voice Core Portal</h1>
+            <p className="text-slate-400 text-sm">Enter identity token coordinates to initialize</p>
           </div>
           
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Email Address</label>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Secure Operator Email</label>
               <input
                 type="email"
                 value={userEmail}
                 onChange={(e) => setUserEmail(e.target.value)}
-                placeholder="your@email.com"
+                placeholder="operator@system.com"
                 required
-                className="w-full px-4 py-3.5 bg-slate-950/60 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:shadow-[0_0_15px_rgba(6,182,212,0.15)] transition-all"
+                className="w-full px-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm"
               />
             </div>
             
             <button
               type="submit"
               disabled={isLoading || !userEmail}
-              className="w-full px-4 py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-medium rounded-xl transition-all duration-300 shadow-lg disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed transform active:scale-[0.99]"
+              className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium rounded-xl shadow-lg transition-all disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-sm uppercase tracking-wider"
             >
-              {isLoading ? 'Establishing Gateway...' : 'Initialize Chat Portal'}
+              {isLoading ? 'Accessing Quantum Node...' : 'Establish Connection Link'}
             </button>
           </form>
           
-          <p className="text-[11px] text-slate-500 text-center mt-6 leading-relaxed">
-            Your email will be used to save your chat history for future sessions.
+          <p className="text-[11px] text-slate-500 text-center mt-5 leading-relaxed">
+            Your identity sequence maintains session history across isolated operations.
           </p>
         </div>
       </div>
@@ -630,24 +632,23 @@ function App() {
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950/40 text-slate-200 font-sans relative overflow-hidden">
+    <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-200 antialiased relative">
       <audio ref={audioElementRef} autoPlay playsInline />
       
-      {/* 2. COOLING STYLE DESIGN: Frosted Translucent Sidebar */}
-      <div className="w-80 bg-slate-950/40 backdrop-blur-xl border-r border-slate-900/80 flex flex-col z-10">
-        <div className="p-6 border-b border-slate-900/60">
+      {/* Frosted Translucent Sidebar */}
+      <div className="w-80 bg-slate-900/40 backdrop-blur-md border-r border-slate-900 flex flex-col z-10">
+        <div className="p-6 border-b border-slate-900">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-md">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
               <Users className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-white tracking-wide">Voice Agents</h1>
-              <p className="text-xs text-slate-400">Select an active intelligence</p>
+              <h1 className="text-md font-bold text-white tracking-wide">Matrix Directory</h1>
+              <p className="text-xs text-slate-400">Select processing node</p>
             </div>
           </div>
         </div>
 
-        {/* Dynamic Navigation Row Maps */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {agents.map((agent) => {
             const Icon = agent.icon;
@@ -656,26 +657,25 @@ function App() {
               <div
                 key={agent.id}
                 onClick={() => handleAgentSelect(agent)}
-                style={{ boxShadow: isSelected ? `0 0 15px ${agent.glowColor}` : 'none' }}
-                className={`p-4 rounded-xl border transition-all duration-300 cursor-pointer transform hover:scale-[1.01] ${
+                className={`p-4 rounded-xl border transition-all duration-200 cursor-pointer ${
                   isSelected
-                    ? `bg-gradient-to-br ${agent.color}/10 border-cyan-500`
+                    ? 'bg-gradient-to-r from-blue-950/40 to-slate-900/60 border-blue-500/80 shadow-[0_0_15px_rgba(59,130,246,0.1)]'
                     : agent.status === 'available'
-                    ? 'bg-slate-900/40 border-slate-900/80 hover:bg-slate-900/80 hover:border-slate-800'
-                    : 'bg-slate-900/20 border-slate-950 opacity-40 cursor-not-allowed'
+                    ? 'bg-slate-950/40 border-slate-900 hover:bg-slate-900/40 hover:border-slate-800'
+                    : 'bg-slate-950/10 border-slate-950 opacity-40 cursor-not-allowed'
                 }`}
               >
                 <div className="flex items-start space-x-3">
-                  <div className={`w-11 h-11 bg-gradient-to-tr ${agent.color} rounded-xl flex items-center justify-center flex-shrink-0 shadow-md`}>
+                  <div className={`w-11 h-11 ${agent.color} rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm`}>
                     <Icon className="w-5 h-5 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-white font-semibold text-sm tracking-wide">{agent.name}</h3>
-                      <div className={`w-1.5 h-1.5 rounded-full ${agent.status === 'available' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                      <h3 className="text-white font-medium text-sm tracking-wide">{agent.name}</h3>
+                      <div className={`w-1.5 h-1.5 rounded-full ${agent.status === 'available' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                     </div>
-                    <p className="text-xs text-cyan-400/90 font-medium mt-0.5">{agent.title}</p>
-                    <p className="text-[11px] text-slate-400 mt-1.5 line-clamp-2 leading-relaxed">{agent.description}</p>
+                    <p className="text-xs text-slate-400 font-medium">{agent.title}</p>
+                    <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">{agent.description}</p>
                   </div>
                 </div>
               </div>
@@ -683,25 +683,24 @@ function App() {
           })}
         </div>
 
-        {/* Sidebar Footer Component Info Panels */}
-        <div className="p-4 border-t border-slate-900/60 bg-slate-950/20">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-1.5 text-slate-400">
+        <div className="p-4 border-t border-slate-900 bg-slate-950/20">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center space-x-1.5 text-slate-500">
               <User className="w-3.5 h-3.5" />
-              <span className="text-[11px] font-medium tracking-wider uppercase">Operator Session</span>
+              <span className="text-[10px] font-bold tracking-wider uppercase">Active Token Identity</span>
             </div>
-            <button onClick={handleLogout} className="text-xs text-rose-400 hover:text-rose-300 transition-colors font-medium">
-              Logout
+            <button onClick={handleLogout} className="text-xs text-rose-400 hover:text-rose-300 transition-colors">
+              Disconnect
             </button>
           </div>
-          <p className="text-xs text-slate-300 truncate font-mono mb-4">{userEmail}</p>
+          <p className="text-xs text-slate-300 truncate font-mono mb-3">{userEmail}</p>
           
           {chatHistory.length > 0 && (
-            <div className="mb-4">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Memory Logs ({chatHistory.length})</p>
-              <div className="max-h-28 overflow-y-auto space-y-1.5 pr-1">
+            <div className="mb-3">
+              <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1.5">Cache Modules ({chatHistory.length})</p>
+              <div className="max-h-24 overflow-y-auto space-y-1 pr-1">
                 {chatHistory.slice(0, 3).map((session) => (
-                  <div key={session.id} className="text-[11px] text-slate-300 p-2 bg-slate-950/50 border border-slate-900/60 rounded-lg truncate hover:text-white transition-colors">
+                  <div key={session.id} className="text-[11px] text-slate-400 p-1.5 bg-slate-950/60 border border-slate-900 rounded-lg truncate">
                     {session.summary}
                   </div>
                 ))}
@@ -709,78 +708,78 @@ function App() {
             </div>
           )}
           
-          <div className="flex items-center space-x-2 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer pt-1">
-            <Settings className="w-4 h-4" />
-            <span className="text-xs font-medium">System Settings</span>
+          <div className="flex items-center space-x-2 text-slate-500 text-xs hover:text-slate-300 transition-colors cursor-pointer pt-1">
+            <Settings className="w-3.5 h-3.5" />
+            <span>Operational Config</span>
           </div>
         </div>
       </div>
 
-      {/* 3. COOLING STYLE DESIGN: Main Processing Control Display */}
+      {/* Main Container Viewport */}
       <div className="flex-1 flex flex-col z-10 relative">
         {selectedAgent ? (
           <>
-            {/* Header Toolbar */}
-            <div className="bg-slate-950/20 backdrop-blur-md border-b border-slate-900/60 p-6 flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className={`w-12 h-12 bg-gradient-to-tr ${selectedAgent.color} rounded-xl flex items-center justify-center shadow-md`}>
-                  <selectedAgent.icon className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <h2 className="text-xl font-bold text-white tracking-wide">{selectedAgent.name}</h2>
-                    
-                    {/* 🛠️ SPEC POPUP OVERLAY ACTION BUTTON */}
-                    <button 
-                      onClick={() => setIsTechStackOpen(true)}
-                      className="p-1 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800/80 text-slate-400 hover:text-cyan-400 transition-all shadow-sm"
-                      title="Inspect Technical Specs"
-                    >
-                      <Info className="w-3.5 h-3.5" />
-                    </button>
+            {/* Control Strip Toolbar */}
+            <div className="bg-slate-900/20 backdrop-blur-md border-b border-slate-900 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className={`w-12 h-12 ${selectedAgent.color} rounded-xl flex items-center justify-center shadow-md`}>
+                    <selectedAgent.icon className="w-5 h-5 text-white" />
                   </div>
-                  <p className="text-xs text-slate-400">{selectedAgent.title}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2 bg-slate-950/40 px-3 py-1.5 border border-slate-900 rounded-xl">
-                  <div className={`w-2 h-2 rounded-full ${
-                    connectionStatus === 'connected' ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.4)]' :
-                    connectionStatus === 'connecting' ? 'bg-amber-400 animate-pulse' : 'bg-rose-500'
-                  }`} />
-                  <span className="text-xs font-semibold tracking-wider text-slate-300 uppercase">{connectionStatus}</span>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h2 className="text-lg font-bold text-white tracking-wide">{selectedAgent.name}</h2>
+                      
+                      {/* 🛠️ NEW: Interactive Pop-up Window Trigger Button */}
+                      <button 
+                        onClick={() => setIsTechStackModalOpen(true)}
+                        className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-blue-400 transition-all shadow-sm"
+                        title="Display Architecture Blueprints"
+                      >
+                        <Info className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-400">{selectedAgent.title}</p>
+                  </div>
                 </div>
                 
-                {!isConnected ? (
-                  <button
-                    onClick={() => handleConnect(null)}
-                    disabled={isTokenLoading || connectionStatus === 'connecting'}
-                    className="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-medium text-white rounded-xl flex items-center space-x-2 transition-all shadow-md transform active:scale-[0.98]"
-                  >
-                    <Phone className="w-4 h-4" />
-                    <span className="text-xs font-semibold uppercase tracking-wider">
-                      {isTokenLoading ? 'Syncing...' : connectionStatus === 'connecting' ? 'Connecting...' : 'Connect Link'}
-                    </span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleDisconnect}
-                    className="px-5 py-2.5 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 font-medium text-white rounded-xl flex items-center space-x-2 transition-all shadow-md transform active:scale-[0.98]"
-                  >
-                    <PhoneOff className="w-4 h-4" />
-                    <span className="text-xs font-semibold uppercase tracking-wider">Disconnect</span>
-                  </button>
-                )}
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2 bg-slate-950/40 px-3 py-1.5 border border-slate-900 rounded-xl">
+                    <div className={`w-1.5 h-1.5 rounded-full ${
+                      connectionStatus === 'connected' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]' :
+                      connectionStatus === 'connecting' ? 'bg-amber-400 animate-pulse' : 'bg-rose-500'
+                    }`} />
+                    <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">{connectionStatus}</span>
+                  </div>
+                  
+                  {!isConnected ? (
+                    <button
+                      onClick={() => handleConnect(null)}
+                      disabled={isTokenLoading || connectionStatus === 'connecting'}
+                      className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold uppercase tracking-wider rounded-xl flex items-center space-x-2 transition-all shadow-md transform active:scale-[0.98]"
+                    >
+                      <Phone className="w-3.5 h-3.5" />
+                      <span>{isTokenLoading ? 'Syncing...' : connectionStatus === 'connecting' ? 'Linking...' : 'Connect Intercom'}</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleDisconnect}
+                      className="px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-semibold uppercase tracking-wider rounded-xl flex items-center space-x-2 transition-all shadow-md transform active:scale-[0.98]"
+                    >
+                      <PhoneOff className="w-3.5 h-3.5" />
+                      <span>Terminate Link</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Conversation Log Thread Panel */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-950/10">
+            {/* Conversation Core Thread Panel */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-950/5">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center opacity-40">
-                  <MessageSquare className="w-12 h-12 text-slate-500 mb-3" />
-                  <p className="text-sm tracking-wide text-slate-400">Start a conversation with {selectedAgent.name}</p>
+                  <MessageSquare className="w-10 h-10 text-slate-600 mb-2" />
+                  <p className="text-xs text-slate-400 tracking-wide">Data routing pathway clear with {selectedAgent.name}</p>
                 </div>
               ) : (
                 messages.map((message) => (
@@ -788,180 +787,175 @@ function App() {
                     key={message.id}
                     className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div className={`max-w-xl px-4 py-3 rounded-2xl shadow-sm border border-slate-900/20 ${
+                    <div className={`max-w-xl px-4 py-2.5 rounded-2xl shadow-sm border border-slate-900/10 text-sm leading-relaxed ${
                       message.sender === 'user' 
-                        ? 'bg-gradient-to-br from-cyan-600 to-blue-600 text-white rounded-br-none' 
-                        : 'bg-slate-900/60 backdrop-blur-md text-slate-100 rounded-bl-none'
+                        ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-br-none' 
+                        : 'bg-slate-900/60 backdrop-blur-sm text-slate-200 rounded-bl-none'
                     }`}>
-                      <p className="text-sm leading-relaxed">{message.text}</p>
-                      <p className="text-[10px] opacity-65 mt-1.5 font-mono text-right">{message.timestamp}</p>
+                      <p>{message.text}</p>
+                      <p className="text-[9px] opacity-60 mt-1 font-mono text-right">{message.timestamp}</p>
                     </div>
                   </div>
                 ))
               )}
             </div>
 
-            {/* Control Dashboard Footer Panels */}
-            <div className="bg-slate-950/20 backdrop-blur-md border-t border-slate-900/60 p-6">
+            {/* Bottom Processing Control Strip */}
+            <div className="bg-slate-900/20 backdrop-blur-md border-t border-slate-900 p-6">
               <div className="flex items-center space-x-4">
                 <button
                   onClick={toggleMute}
                   disabled={!isConnected}
-                  className={`p-3.5 rounded-xl transition-all shadow-md ${
+                  className={`p-3 rounded-xl transition-all shadow-md ${
                     !isConnected
-                      ? 'bg-slate-900/50 border border-slate-800/80 text-slate-600 cursor-not-allowed'
+                      ? 'bg-slate-950/40 text-slate-700 border border-slate-900 cursor-not-allowed'
                       : isMuted
-                      ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]'
-                      : 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white'
+                      ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-[0_0_12px_rgba(239,68,68,0.2)]'
+                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
                   }`}
                 >
                   {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </button>
 
-                {/* Animated Soundwave Indicators */}
-                <div className="flex-1 flex items-center justify-center space-x-1.5 h-12 bg-slate-950/30 border border-slate-900/60 rounded-xl px-4">
-                  {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                {/* Simulated Soundwave Bars */}
+                <div className="flex-1 flex items-center justify-center space-x-1.5 h-11 bg-slate-950/40 border border-slate-900 rounded-xl px-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
                     <div
                       key={i}
-                      className={`w-1 bg-gradient-to-t from-cyan-400 to-blue-500 rounded-full transition-all duration-300 ${
-                        isSpeaking ? 'animate-bounce' : 'opacity-20'
+                      className={`w-1 bg-gradient-to-t from-blue-400 to-indigo-500 rounded-full transition-all duration-200 ${
+                        isSpeaking ? 'animate-pulse' : 'opacity-20'
                       }`}
                       style={{ 
-                        height: isSpeaking ? `${Math.floor(Math.random() * 24) + 8}px` : '4px',
-                        animationDelay: `${i * 0.15}s`
+                        height: isSpeaking ? `${Math.floor(Math.random() * 18) + 6}px` : '4px',
+                        animationDelay: `${i * 0.1}s`
                       }}
                     />
                   ))}
                 </div>
 
-                <div className="flex items-center space-x-2 font-medium min-w-[120px] justify-end">
+                <div className="flex items-center space-x-2 font-medium min-w-[110px] justify-end">
                   {isSpeaking ? (
-                    <div className="flex items-center space-x-1.5 text-emerald-400">
-                      <Volume2 className="w-4 h-4 animate-pulse" />
-                      <span className="text-xs">Speaking...</span>
+                    <div className="flex items-center space-x-1.5 text-emerald-400 text-xs">
+                      <Volume2 className="w-4 h-4" />
+                      <span>Synthesizing...</span>
                     </div>
                   ) : isConnected ? (
-                    <div className="flex items-center space-x-1.5 text-cyan-400">
-                      <Activity className="w-4 h-4" />
-                      <span className="text-xs">Listening...</span>
+                    <div className="flex items-center space-x-1.5 text-blue-400 text-xs">
+                      <Activity className="w-4 h-4 animate-pulse" />
+                      <span>Monitoring...</span>
                     </div>
                   ) : (
-                    <div className="flex items-center space-x-1.5 text-slate-500">
+                    <div className="flex items-center space-x-1.5 text-slate-600 text-xs">
                       <Mic className="w-4 h-4" />
-                      <span className="text-xs">Offline</span>
+                      <span>Standby</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Hardware Monitoring Pipelines */}
-              <div className="mt-4 grid grid-cols-2 gap-4 p-3 bg-slate-950/40 border border-slate-900 rounded-xl">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 font-medium">Hardware Microphone:</span>
-                  <span className={`font-semibold ${micPermission ? 'text-emerald-400' : 'text-amber-400'}`}>
-                    {micPermission ? 'Pipeline Active' : 'Uninitialized'}
+              {/* Hardware Diagnostic Matrix */}
+              <div className="mt-4 grid grid-cols-2 gap-4 p-3 bg-slate-950/30 border border-slate-900/80 rounded-xl">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-500">Audio Input Node:</span>
+                  <span className={`font-medium ${micPermission ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {micPermission ? 'Hardware Locked' : 'Await Init'}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-xs border-l border-slate-900 pl-4">
-                  <span className="text-slate-500 font-medium">Stream Channel State:</span>
-                  <span className={`font-semibold capitalize ${
+                <div className="flex items-center justify-between text-[11px] border-l border-slate-900 pl-4">
+                  <span className="text-slate-500">Duplex Stream Link:</span>
+                  <span className={`font-medium capitalize ${
                     connectionStatus === 'connected' ? 'text-emerald-400' : 
-                    connectionStatus === 'connecting' ? 'text-amber-400' : 
-                    connectionStatus === 'error' ? 'text-rose-400' : 'text-slate-400'
+                    connectionStatus === 'connecting' ? 'text-amber-400' : 'text-slate-500'
                   }`}>
                     {connectionStatus}
                   </span>
                 </div>
               </div>
 
-              {/* 🛠️ SAFELY REMAPPED AND COMPLETED FALLBACK INPUT BAR INTERFACE */}
+              {/* Fallback Text Interface Controls */}
               <div className="mt-4 flex space-x-2">
                 <input
                   type="text"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder={`Type a fallback message to ${selectedAgent?.name || 'agent'}...`}
-                  className="flex-1 px-4 py-3 bg-slate-950/60 border border-slate-900 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-all text-sm"
+                  placeholder={`Dispatch safe text override sequence to ${selectedAgent?.name || 'agent'}...`}
+                  className="flex-1 px-4 py-2.5 bg-slate-950/50 border border-slate-900 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/80 transition-all text-xs font-mono"
                 />
                 <button
                   onClick={handleSendMessage}
-                  className="p-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-xl transition-all shadow-md flex items-center justify-center transform active:scale-[0.97]"
+                  className="px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl transition-all shadow-md flex items-center justify-center transform active:scale-[0.96]"
                 >
-                  <Send className="w-4 h-4" />
+                  <Send className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center opacity-50 px-4">
-            <Layers className="w-16 h-16 text-slate-600 mb-4 stroke-[1.2]" />
-            <h2 className="text-xl font-bold text-white tracking-wide">Awaiting Framework Instructions</h2>
-            <p className="text-sm text-slate-400 mt-1 max-w-sm leading-relaxed">Select an automated agent instance from the left control matrix terminal to establish an active streaming voice link.</p>
+          <div className="flex flex-col items-center justify-center h-full text-center opacity-30 px-4">
+            <Radio className="w-12 h-12 text-slate-600 mb-3 animate-pulse" />
+            <h2 className="text-md font-bold text-white tracking-wide">Signal Matrix Static</h2>
+            <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">Map an active processing node variable from the directory column matrix to open streaming duplex pipelines.</p>
           </div>
         )}
       </div>
 
-      {/* 4. 🛠️ TECH STACK BLUEPRINT OVERLAY SPEC MODAL */}
-      {isTechStackOpen && selectedAgent && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center处理 z-50 p-4 transition-all duration-200">
-          <div className="bg-slate-900 border border-slate-800 shadow-[0_24px_60px_rgba(0,0,0,0.6)] rounded-2xl max-w-md w-full overflow-hidden relative transform transition-all">
+      {/* 4. 🛠️ NEW: FROSTED BLUEPRINT WINDOW MODAL POPUP */}
+      {isTechStackModalOpen && selectedAgent && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl max-w-md w-full overflow-hidden relative border-t-4 border-t-blue-500">
             
-            {/* Top decorative gradient highlight border */}
-            <div className={`h-1 bg-gradient-to-r ${selectedAgent.color}`} />
-            
-            {/* Close modal interface trigger */}
+            {/* Direct Close Window Action Target */}
             <button 
-              onClick={() => setIsTechStackOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg bg-slate-950/40 hover:bg-slate-950 border border-slate-800/40 transition-colors"
+              onClick={() => setIsTechStackModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg bg-slate-950/60 border border-slate-800/80 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
             
             <div className="p-6">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="p-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-xl">
-                  <Layers className="w-5 h-5" />
+              <div className="flex items-center space-x-3 mb-5">
+                <div className={`p-2 ${selectedAgent.color} text-white rounded-xl shadow-md`}>
+                  <Settings className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">System Architecture</h3>
-                  <p className="text-xs text-slate-400">{selectedAgent.name} • Execution Details</p>
+                  <h3 className="text-md font-bold text-white tracking-wide">Architecture Blueprints</h3>
+                  <p className="text-xs text-slate-400">{selectedAgent.name} • Deep Tech Stack Spectrum</p>
                 </div>
               </div>
               
-              {/* Architecture Blueprint Data List Rows */}
-              <div className="space-y-3.5 text-sm">
-                <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-900">
-                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Session Orchestrator Core</span>
-                  <span className="text-slate-200 font-medium">{selectedAgent.stackDetails.framework}</span>
-                </div>
-                
-                <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-900">
-                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Speech-To-Text Pipeline</span>
-                  <span className="text-slate-200 font-medium">{selectedAgent.stackDetails.stt}</span>
-                </div>
-                
-                <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-900">
-                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Context Inference Node (LLM)</span>
-                  <span className="text-slate-200 font-medium">{selectedAgent.stackDetails.llm}</span>
-                </div>
-                
-                <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-900">
-                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Text-To-Speech Generation</span>
-                  <span className="text-slate-200 font-medium">{selectedAgent.stackDetails.tts}</span>
-                </div>
-
-                <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-900">
-                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Voice Activity Detection Engine</span>
-                  <span className="text-slate-200 font-medium">{selectedAgent.stackDetails.vad}</span>
-                </div>
+              {/* Iterating architectural components dynamically along with explicit mapped design symbols */}
+              <div className="space-y-3 font-sans">
+                {selectedAgent.stackLayers.map((layerItem, idx) => {
+                  const LayerIcon = layerItem.icon;
+                  return (
+                    <div 
+                      key={idx} 
+                      className="bg-slate-950/60 p-3 rounded-xl border border-slate-900/80 flex items-center space-x-3.5 hover:border-slate-800 transition-colors"
+                    >
+                      {/* Integrated Technology Symbol */}
+                      <div className={`p-2 bg-slate-900 rounded-lg border border-slate-800 flex-shrink-0 ${layerItem.tint}`}>
+                        <LayerIcon className="w-4 h-4" />
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <span className="block text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">
+                          {layerItem.layer}
+                        </span>
+                        <span className="text-slate-200 text-xs font-medium block truncate font-mono">
+                          {layerItem.name}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
               
               <button
-                onClick={() => setIsTechStackOpen(false)}
-                className="mt-6 w-full py-2.5 bg-slate-950 hover:bg-slate-950/70 text-slate-400 hover:text-slate-200 font-semibold text-xs rounded-xl border border-slate-800 transition-colors uppercase tracking-wider"
+                onClick={() => setIsTechStackModalOpen(false)}
+                className="mt-6 w-full py-2.5 bg-slate-950 hover:bg-slate-950/60 text-slate-400 hover:text-slate-300 font-semibold text-xs rounded-xl border border-slate-800/80 transition-colors uppercase tracking-widest font-mono"
               >
-                Close System Specifications
+                Close Specifications
               </button>
             </div>
           </div>
