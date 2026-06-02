@@ -767,7 +767,7 @@ function App() {
             //   )}
             // </div>
 
-            {/* Conversation Core Thread Panel (Hides Text History, Keeps DB Tracking Live) */}
+            /* Conversation Core Thread Panel (Hides Text History, Keeps DB Tracking Live) */
             <div className="flex-1 flex flex-col items-center justify-center bg-slate-950/10 p-6 relative">
               {connectionStatus === 'connected' ? (
                 <div className="text-center space-y-6 flex flex-col items-center">
