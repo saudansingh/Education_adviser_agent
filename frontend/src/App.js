@@ -78,7 +78,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isTokenLoading, setIsTokenLoading] = useState(false);
   
-  // 🛠️ CHANGED: Tracks the specific agent targeted for blueprint review independently from active session
+  // Tracks the specific agent targeted for blueprint review independently from active session
   const [activeModalAgent, setActiveModalAgent] = useState(null);
   
   // Framework Instances Refs
@@ -240,7 +240,6 @@ function App() {
       if (response.ok) {
         const data = await response.json();
         setToken(data.token);
-        // setTimeout(() => handleConnect(data.token), 500);
       } else if (response.status === 401 || response.status === 403 || response.status === 405) {
         localStorage.removeItem('jwtToken');
         localStorage.removeItem('userEmail');
@@ -373,7 +372,7 @@ function App() {
             setIsSpeaking(false);
           }
         } else {
-          playRawAudioBufferChunk(event.data);
+          playRawAudioAudioBufferChunk(event.data);
         }
       };
 
@@ -426,7 +425,7 @@ function App() {
     }
   };
 
-  const playRawAudioBufferChunk = (arrayBuffer) => {
+  const playRawAudioAudioBufferChunk = (arrayBuffer) => {
     const audioCtx = audioContextRef.current;
     if (!audioCtx || audioCtx.state === 'closed') return;
 
@@ -599,6 +598,9 @@ function App() {
     );
   }
 
+  // Assign capitalized variable reference to support valid JSX parsing for selected agent icon
+  const SelectedAgentIcon = selectedAgent ? selectedAgent.icon : null;
+
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-200 antialiased relative">
       <audio ref={audioElementRef} autoPlay playsInline />
@@ -642,7 +644,7 @@ function App() {
                       <h3 className="text-white font-medium text-sm tracking-wide pr-6 truncate">{agent.name}</h3>
                       <div className="flex items-center space-x-2">
                         
-                        {/* 🛠️ CHANGED: Info button inside individual agent cards. Uses stopPropagation to prevent starting session */}
+                        {/* Info button inside individual agent cards. Uses stopPropagation to prevent starting session */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -690,7 +692,6 @@ function App() {
               </div>
             </div>
           )}
-          {/* 🛠️ REMOVED: Unused and unclickable Operation Config lines are stripped entirely */}
         </div>
       </div>
 
@@ -703,7 +704,7 @@ function App() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <div className={`w-12 h-12 ${selectedAgent.color} rounded-xl flex items-center justify-center shadow-md`}>
-                    <selectedAgent.icon className="w-5 h-5 text-white" />
+                    {SelectedAgentIcon && <SelectedAgentIcon className="w-5 h-5 text-white" />}
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-white tracking-wide">{selectedAgent.name}</h2>
@@ -742,32 +743,7 @@ function App() {
               </div>
             </div>
 
-           
-            //   {messages.length === 0 ? (
-            //     <div className="flex flex-col items-center justify-center h-full text-center opacity-40">
-            //       <MessageSquare className="w-10 h-10 text-slate-600 mb-2" />
-            //       <p className="text-xs text-slate-400 tracking-wide">Data routing pathway clear with {selectedAgent.name}</p>
-            //     </div>
-            //   ) : (
-            //     messages.map((message) => (
-            //       <div
-            //         key={message.id}
-            //         className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-            //       >
-            //         <div className={`max-w-xl px-4 py-2.5 rounded-2xl shadow-sm border border-slate-900/10 text-sm leading-relaxed ${
-            //           message.sender === 'user' 
-            //             ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-br-none' 
-            //             : 'bg-slate-900/60 backdrop-blur-sm text-slate-200 rounded-bl-none'
-            //         }`}>
-            //           <p>{message.text}</p>
-            //           <p className="text-[9px] opacity-60 mt-1 font-mono text-right">{message.timestamp}</p>
-            //         </div>
-            //       </div>
-            //     ))
-            //   )}
-            // </div>
-
-            /* Conversation Core Thread Panel (Hides Text History, Keeps DB Tracking Live) */
+            {/* Conversation Core Thread Panel */}
             <div className="flex-1 flex flex-col items-center justify-center bg-slate-950/10 p-6 relative">
               {connectionStatus === 'connected' ? (
                 <div className="text-center space-y-6 flex flex-col items-center">
@@ -779,180 +755,65 @@ function App() {
                       {React.createElement(selectedAgent.icon, { className: `w-10 h-10 text-white ${isSpeaking ? 'animate-bounce' : ''}` })}
                     </div>
                   </div>
-            
+                
                   <div className="space-y-1">
                     <h3 className="text-md font-bold text-white tracking-wider uppercase">Voice Stream Secure</h3>
                     <p className="text-xs text-slate-400 font-mono">
-                      {isSpeaking ? `${selectedAgent.name} is speaking...` : 'Listening for audio input...'}
+                      {isSpeaking ? `${selectedAgent.name} is streaming audio...` : 'Link Listening Standby'}
                     </p>
-                  </div>
-            
-                  <div className="px-4 py-1.5 bg-slate-900/60 border border-slate-800 rounded-full text-[11px] font-mono text-emerald-400 shadow-inner">
-                    ENCRYPTED LIVE FEED TO DATABASE ACTIVE
                   </div>
                 </div>
               ) : (
-                <div className="text-center opacity-40 max-w-sm">
-                  <Radio className="w-12 h-12 text-slate-600 mx-auto mb-3 animate-pulse" />
-                  <p className="text-xs text-slate-400 tracking-wide uppercase font-bold mb-1">Intercom Standby</p>
-                  <p className="text-[11px] text-slate-500 leading-relaxed">
-                    Establish the connection link above to route live bi-directional audio layers.
-                  </p>
+                <div className="text-center opacity-40">
+                  <Radio className="w-10 h-10 text-slate-600 mb-2 mx-auto animate-pulse" />
+                  <p className="text-xs text-slate-400 tracking-wide">Intercom offline. Initialize the pipeline connection above.</p>
                 </div>
               )}
             </div>
-            
-            {/* Bottom Processing Control Strip */}
-            <div className="bg-slate-900/20 backdrop-blur-md border-t border-slate-900 p-6">
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={toggleMute}
-                  disabled={!isConnected}
-                  className={`p-3 rounded-xl transition-all shadow-md ${
-                    !isConnected
-                      ? 'bg-slate-950/40 text-slate-700 border border-slate-900 cursor-not-allowed'
-                      : isMuted
-                      ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-[0_0_12px_rgba(239,68,68,0.2)]'
-                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
-                  }`}
-                >
-                  {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                </button>
-
-                <div className="flex-1 flex items-center justify-center space-x-1.5 h-11 bg-slate-950/40 border border-slate-900 rounded-xl px-4">
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div
-                      key={i}
-                      className={`w-1 bg-gradient-to-t from-blue-400 to-indigo-500 rounded-full transition-all duration-200 ${
-                        isSpeaking ? 'animate-pulse' : 'opacity-20'
-                      }`}
-                      style={{ 
-                        height: isSpeaking ? `${Math.floor(Math.random() * 18) + 6}px` : '4px',
-                        animationDelay: `${i * 0.1}s`
-                      }}
-                    />
-                  ))}
-                </div>
-
-                <div className="flex items-center space-x-2 font-medium min-w-[110px] justify-end">
-                  {isSpeaking ? (
-                    <div className="flex items-center space-x-1.5 text-emerald-400 text-xs">
-                      <Volume2 className="w-4 h-4" />
-                      <span>Synthesizing...</span>
-                    </div>
-                  ) : isConnected ? (
-                    <div className="flex items-center space-x-1.5 text-blue-400 text-xs">
-                      <Activity className="w-4 h-4 animate-pulse" />
-                      <span>Monitoring...</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center space-x-1.5 text-slate-600 text-xs">
-                      <Mic className="w-4 h-4" />
-                      <span>Standby</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-4 p-3 bg-slate-950/30 border border-slate-900/80 rounded-xl">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-500">Audio Input Node:</span>
-                  <span className={`font-medium ${micPermission ? 'text-emerald-400' : 'text-amber-400'}`}>
-                    {micPermission ? 'Hardware Locked' : 'Await Init'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-[11px] border-l border-slate-900 pl-4">
-                  <span className="text-slate-500">Duplex Stream Link:</span>
-                  <span className={`font-medium capitalize ${
-                    connectionStatus === 'connected' ? 'text-emerald-400' : 
-                    connectionStatus === 'connecting' ? 'text-amber-400' : 'text-slate-500'
-                  }`}>
-                    {connectionStatus}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-4 flex space-x-2">
-                <input
-                  type="text"
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder={`Dispatch safe text override sequence to ${selectedAgent?.name || 'agent'}...`}
-                  className="flex-1 px-4 py-2.5 bg-slate-950/50 border border-slate-900 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/80 transition-all text-xs font-mono"
-                />
-                <button
-                  onClick={handleSendMessage}
-                  className="px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl transition-all shadow-md flex items-center justify-center transform active:scale-[0.96]"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center opacity-30 px-4">
-            <Radio className="w-12 h-12 text-slate-600 mb-3 animate-pulse" />
-            <h2 className="text-md font-bold text-white tracking-wide">Signal Matrix Static</h2>
-            <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">Map an active processing node variable from the directory column matrix to open streaming duplex pipelines.</p>
+          <div className="flex-1 flex flex-col items-center justify-center text-center opacity-40 p-6">
+            <MessageSquare className="w-12 h-12 text-slate-600 mb-3" />
+            <h2 className="text-md font-bold text-white mb-1">No Processing Node Active</h2>
+            <p className="text-xs text-slate-400 max-w-xs">Select an agent framework from the Matrix Directory sidebar to mount an operational stream.</p>
           </div>
         )}
       </div>
 
-      {/* 🛠️ CHANGED: Unified blueprint window targeted via activeModalAgent context */}
+      {/* Architecture Spec Blueprint Modal */}
       {activeModalAgent && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl max-w-md w-full overflow-hidden relative border-t-4 border-t-blue-500">
-            
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl max-w-md w-full p-6 relative shadow-2xl animate-in fade-in zoom-in-95 duration-150">
             <button 
               onClick={() => setActiveModalAgent(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg bg-slate-950/60 border border-slate-800/80 transition-colors"
+              className="absolute top-4 right-4 p-1.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-white transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
             
-            <div className="p-6">
-              <div className="flex items-center space-x-3 mb-5">
-                <div className={`p-2 ${activeModalAgent.color} text-white rounded-xl shadow-md`}>
-                  <activeModalAgent.icon className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-md font-bold text-white tracking-wide">Architecture Blueprints</h3>
-                  <p className="text-xs text-slate-400">{activeModalAgent.name} • Deep Tech Stack Spectrum</p>
-                </div>
+            <div className="flex items-center space-x-3 mb-6">
+              <div className={`w-12 h-12 ${activeModalAgent.color} rounded-xl flex items-center justify-center shadow-md`}>
+                {React.createElement(activeModalAgent.icon, { className: "w-6 h-6 text-white" })}
               </div>
-              
-              <div className="space-y-3 font-sans">
-                {activeModalAgent.stackLayers.map((layerItem, idx) => {
-                  const LayerIcon = layerItem.icon;
-                  return (
-                    <div 
-                      key={idx} 
-                      className="bg-slate-950/60 p-3 rounded-xl border border-slate-900/80 flex items-center space-x-3.5 hover:border-slate-800 transition-colors"
-                    >
-                      <div className={`p-2 bg-slate-900 rounded-lg border border-slate-800 flex-shrink-0 ${layerItem.tint}`}>
-                        <LayerIcon className="w-4 h-4" />
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <span className="block text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">
-                          {layerItem.layer}
-                        </span>
-                        <span className="text-slate-200 text-xs font-medium block truncate font-mono">
-                          {layerItem.name}
-                        </span>
-                      </div>
+              <div>
+                <h3 className="text-md font-bold text-white">{activeModalAgent.name} Architecture</h3>
+                <p className="text-xs text-slate-400">Node infrastructure breakdown</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {activeModalAgent.stackLayers.map((layer, idx) => {
+                const LayerIcon = layer.icon;
+                return (
+                  <div key={idx} className="flex items-center justify-between p-3.5 bg-slate-950/60 border border-slate-900 rounded-xl">
+                    <div className="min-w-0 flex-1 pr-3">
+                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">{layer.layer}</p>
+                      <p className="text-xs text-slate-300 font-mono truncate">{layer.name}</p>
                     </div>
-                  );
-                })}
-              </div>
-              
-              <button
-                onClick={() => setActiveModalAgent(null)}
-                className="mt-6 w-full py-2.5 bg-slate-950 hover:bg-slate-950/60 text-slate-400 hover:text-slate-300 font-semibold text-xs rounded-xl border border-slate-800/80 transition-colors uppercase tracking-widest font-mono"
-              >
-                Close Specifications
-              </button>
+                    <LayerIcon className={`w-4 h-4 ${layer.tint} flex-shrink-0`} />
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
