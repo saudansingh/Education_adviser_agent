@@ -240,7 +240,7 @@ function App() {
       if (response.ok) {
         const data = await response.json();
         setToken(data.token);
-        setTimeout(() => handleConnect(data.token), 500);
+        // setTimeout(() => handleConnect(data.token), 500);
       } else if (response.status === 401 || response.status === 403 || response.status === 405) {
         localStorage.removeItem('jwtToken');
         localStorage.removeItem('userEmail');
@@ -743,31 +743,66 @@ function App() {
             </div>
 
             {/* Conversation Core Thread Panel */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-950/5">
-              {messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center opacity-40">
-                  <MessageSquare className="w-10 h-10 text-slate-600 mb-2" />
-                  <p className="text-xs text-slate-400 tracking-wide">Data routing pathway clear with {selectedAgent.name}</p>
-                </div>
-              ) : (
-                messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`max-w-xl px-4 py-2.5 rounded-2xl shadow-sm border border-slate-900/10 text-sm leading-relaxed ${
-                      message.sender === 'user' 
-                        ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-br-none' 
-                        : 'bg-slate-900/60 backdrop-blur-sm text-slate-200 rounded-bl-none'
-                    }`}>
-                      <p>{message.text}</p>
-                      <p className="text-[9px] opacity-60 mt-1 font-mono text-right">{message.timestamp}</p>
+            // <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-950/5">
+            //   {messages.length === 0 ? (
+            //     <div className="flex flex-col items-center justify-center h-full text-center opacity-40">
+            //       <MessageSquare className="w-10 h-10 text-slate-600 mb-2" />
+            //       <p className="text-xs text-slate-400 tracking-wide">Data routing pathway clear with {selectedAgent.name}</p>
+            //     </div>
+            //   ) : (
+            //     messages.map((message) => (
+            //       <div
+            //         key={message.id}
+            //         className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+            //       >
+            //         <div className={`max-w-xl px-4 py-2.5 rounded-2xl shadow-sm border border-slate-900/10 text-sm leading-relaxed ${
+            //           message.sender === 'user' 
+            //             ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-br-none' 
+            //             : 'bg-slate-900/60 backdrop-blur-sm text-slate-200 rounded-bl-none'
+            //         }`}>
+            //           <p>{message.text}</p>
+            //           <p className="text-[9px] opacity-60 mt-1 font-mono text-right">{message.timestamp}</p>
+            //         </div>
+            //       </div>
+            //     ))
+            //   )}
+            // </div>
+
+            {/* Conversation Core Thread Panel (Hides Text History, Keeps DB Tracking Live) */}
+            <div className="flex-1 flex flex-col items-center justify-center bg-slate-950/10 p-6 relative">
+              {connectionStatus === 'connected' ? (
+                <div className="text-center space-y-6 flex flex-col items-center">
+                  {/* Central Pulsing Audio Core Orb */}
+                  <div className="relative flex items-center justify-center">
+                    <div className={`absolute w-32 h-32 rounded-full border border-emerald-500/30 animate-ping duration-1000 ${isSpeaking ? 'opacity-100' : 'opacity-0'}`} />
+                    <div className={`absolute w-28 h-28 rounded-full border border-teal-500/20 animate-pulse`} />
+                    <div className={`w-24 h-24 ${selectedAgent.color} rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.2)] border border-white/10 relative z-10`}>
+                      {React.createElement(selectedAgent.icon, { className: `w-10 h-10 text-white ${isSpeaking ? 'animate-bounce' : ''}` })}
                     </div>
                   </div>
-                ))
+            
+                  <div className="space-y-1">
+                    <h3 className="text-md font-bold text-white tracking-wider uppercase">Voice Stream Secure</h3>
+                    <p className="text-xs text-slate-400 font-mono">
+                      {isSpeaking ? `${selectedAgent.name} is speaking...` : 'Listening for audio input...'}
+                    </p>
+                  </div>
+            
+                  <div className="px-4 py-1.5 bg-slate-900/60 border border-slate-800 rounded-full text-[11px] font-mono text-emerald-400 shadow-inner">
+                    ENCRYPTED LIVE FEED TO DATABASE ACTIVE
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center opacity-40 max-w-sm">
+                  <Radio className="w-12 h-12 text-slate-600 mx-auto mb-3 animate-pulse" />
+                  <p className="text-xs text-slate-400 tracking-wide uppercase font-bold mb-1">Intercom Standby</p>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Establish the connection link above to route live bi-directional audio layers.
+                  </p>
+                </div>
               )}
             </div>
-
+            
             {/* Bottom Processing Control Strip */}
             <div className="bg-slate-900/20 backdrop-blur-md border-t border-slate-900 p-6">
               <div className="flex items-center space-x-4">
