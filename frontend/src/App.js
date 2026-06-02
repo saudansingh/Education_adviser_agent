@@ -742,7 +742,7 @@ function App() {
               </div>
             </div>
 
-            {/* Conversation Core Thread Panel */}
+            // {/* Conversation Core Thread Panel */}
             // <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-950/5">
             //   {messages.length === 0 ? (
             //     <div className="flex flex-col items-center justify-center h-full text-center opacity-40">
