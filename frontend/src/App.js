@@ -557,53 +557,6 @@ function App() {
 
   if (!isLoggedIn) {
     return (
-      <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 items-center justify-center relative overflow-hidden">
-        <div className="absolute w-[400px] h-[400px] bg-blue-500/10 blur-[100px] -top-20 -left-20 rounded-full pointer-events-none" />
-        <div className="absolute w-[400px] h-[400px] bg-emerald-500/5 blur-[100px] -bottom-20 -right-20 rounded-full pointer-events-none" />
-        
-        <div className="bg-slate-900/60 backdrop-blur-xl p-8 rounded-2xl border border-slate-800/80 shadow-2xl max-w-md w-full mx-4 relative z-10">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl">
-              <GraduationCap className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-white tracking-wide mb-1">Voice Core Portal</h1>
-            <p className="text-slate-400 text-sm">Enter identity token coordinates to initialize</p>
-          </div>
-          
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Secure Operator Email</label>
-              <input
-                type="email"
-                value={userEmail}
-                onChange={(e) => setUserEmail(e.target.value)}
-                placeholder="operator@system.com"
-                required
-                className="w-full px-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm"
-              />
-            </div>
-            
-            <button
-              type="submit"
-              disabled={isLoading || !userEmail}
-              className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium rounded-xl shadow-lg transition-all disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-sm uppercase tracking-wider"
-            >
-              {isLoading ? 'Accessing Quantum Node...' : 'Establish Connection Link'}
-            </button>
-          </form>
-          
-          <p className="text-[11px] text-slate-500 text-center mt-5 leading-relaxed">
-            Your identity sequence maintains session history across isolated operations.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Extracted Component instantiation wrapper for valid dot-notation JSX processing
-  const ActiveAgentIcon = selectedAgent ? selectedAgent.icon : null;
-
-  return (
     <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-200 antialiased relative">
       <audio ref={audioElementRef} autoPlay playsInline />
       
@@ -646,7 +599,6 @@ function App() {
                       <h3 className="text-white font-medium text-sm tracking-wide pr-6 truncate">{agent.name}</h3>
                       <div className="flex items-center space-x-2">
                         
-                        {/* 🛠️ CHANGED: Info button inside individual agent cards. Uses stopPropagation to prevent starting session */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -706,7 +658,7 @@ function App() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <div className={`w-12 h-12 ${selectedAgent.color} rounded-xl flex items-center justify-center shadow-md`}>
-                    {ActiveAgentIcon && <ActiveAgentIcon className="w-5 h-5 text-white" />}
+                    {React.createElement(selectedAgent.icon, { className: "w-5 h-5 text-white" })}
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-white tracking-wide">{selectedAgent.name}</h2>
@@ -745,31 +697,6 @@ function App() {
               </div>
             </div>
 
-            {/* Corrected legacy code comment blocks to use explicit JSX comments */}
-            {/* {messages.length === 0 ? (
-                 <div className="flex flex-col items-center justify-center h-full text-center opacity-40">
-                   <MessageSquare className="w-10 h-10 text-slate-600 mb-2" />
-                   <p className="text-xs text-slate-400 tracking-wide">Data routing pathway clear with {selectedAgent.name}</p>
-                 </div>
-               ) : (
-                 messages.map((message) => (
-                   <div
-                     key={message.id}
-                     className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                   >
-                     <div className={`max-w-xl px-4 py-2.5 rounded-2xl shadow-sm border border-slate-900/10 text-sm leading-relaxed ${
-                       message.sender === 'user' 
-                         ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-br-none' 
-                         : 'bg-slate-900/60 backdrop-blur-sm text-slate-200 rounded-bl-none'
-                     }`}>
-                       <p>{message.text}</p>
-                       <p className="text-[9px] opacity-60 mt-1 font-mono text-right">{message.timestamp}</p>
-                     </div>
-                   </div>
-                 ))
-               )}
-            */}
-
             {/* Conversation Core Thread Panel (Hides Text History, Keeps DB Tracking Live) */}
             <div className="flex-1 flex flex-col items-center justify-center bg-slate-950/10 p-6 relative">
               {connectionStatus === 'connected' ? (
@@ -782,19 +709,120 @@ function App() {
                       {React.createElement(selectedAgent.icon, { className: `w-10 h-10 text-white ${isSpeaking ? 'animate-bounce' : ''}` })}
                     </div>
                   </div>
-                
+
                   <div className="space-y-1">
                     <h3 className="text-md font-bold text-white tracking-wider uppercase">Voice Stream Secure</h3>
                     <p className="text-xs text-slate-400 font-mono">
-                      {isSpeaking ? `${selectedAgent.name} is speaking...` : 'Standing By'}
+                      {isSpeaking ? `${selectedAgent.name} is speaking...` : 'Listening for audio input...'}
                     </p>
                   </div>
+
+                  <div className="px-4 py-1.5 bg-slate-900/60 border border-slate-800 rounded-full text-[11px] font-mono text-emerald-400 shadow-inner">
+                    ENCRYPTED LIVE FEED TO DATABASE ACTIVE
+                  </div>
                 </div>
-              ) : null}
+              ) : (
+                <div className="text-center opacity-40 max-w-sm">
+                  <Radio className="w-12 h-12 text-slate-600 mx-auto mb-3 animate-pulse" />
+                  <p className="text-xs text-slate-400 tracking-wide uppercase font-bold mb-1">Intercom Standby</p>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Establish the connection link above to route live bi-directional audio layers.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Processing Control Strip */}
+            <div className="bg-slate-900/20 backdrop-blur-md border-t border-slate-900 p-6">
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={toggleMute}
+                  disabled={!isConnected}
+                  className={`p-3 rounded-xl transition-all shadow-md ${
+                    !isConnected
+                      ? 'bg-slate-950/40 text-slate-700 border border-slate-900 cursor-not-allowed'
+                      : isMuted
+                      ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-[0_0_12px_rgba(239,68,68,0.2)]'
+                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
+                  }`}
+                >
+                  {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                </button>
+
+                <div className="flex-1 flex items-center justify-center space-x-1.5 h-11 bg-slate-950/40 border border-slate-900 rounded-xl px-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div
+                      key={i}
+                      className={`w-1 bg-gradient-to-t from-blue-400 to-indigo-500 rounded-full transition-all duration-200 ${
+                        isSpeaking ? 'animate-pulse' : 'opacity-20'
+                      }`}
+                      style={{ 
+                        height: isSpeaking ? '24px' : '8px' 
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           </>
-        ) : null}
+        ) : (
+          /* Empty Active Dashboard State */
+          <div className="flex-1 flex flex-col items-center justify-center opacity-30 text-center">
+            <Bot className="w-16 h-16 mb-4 text-slate-500 animate-pulse" />
+            <p className="text-sm font-bold tracking-wider uppercase text-white">No Stream Initialized</p>
+            <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
+              Select an agent from the Matrix Directory layout panel to route real-time audio streams.
+            </p>
+          </div>
+        )}
       </div>
+
+      {/* Architecture Spec Modal Blueprint Popup */}
+      {activeModalAgent && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
+              <div className="flex items-center space-x-3">
+                <div className={`w-10 h-10 ${activeModalAgent.color} rounded-xl flex items-center justify-center`}>
+                  {React.createElement(activeModalAgent.icon, { className: "w-5 h-5 text-white" })}
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-sm font-bold text-white">{activeModalAgent.name} Layers</h3>
+                    <span className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-[9px] font-mono text-cyan-400 uppercase tracking-wider">
+                      {activeModalAgent.techStack}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">{activeModalAgent.title}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setActiveModalAgent(null)}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+              <p className="text-xs text-slate-400 leading-relaxed bg-slate-950/50 p-3 rounded-xl border border-slate-800/50 font-mono">
+                {activeModalAgent.description}
+              </p>
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-bold tracking-wider text-slate-500 uppercase px-1">Pipeline Infrastructure</h4>
+                {activeModalAgent.stackLayers?.map((layer, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 bg-slate-950/30 border border-slate-800/40 rounded-xl">
+                    <div className="flex items-center space-x-3">
+                      {React.createElement(layer.icon, { className: `w-4 h-4 ${layer.tint}` })}
+                      <span className="text-xs font-medium text-slate-300">{layer.layer}</span>
+                    </div>
+                    <span className="text-[11px] font-mono text-slate-400">{layer.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
