@@ -598,8 +598,7 @@ function App() {
       </div>
     );
   }
-
-  return (
+return (
     <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-200 antialiased relative">
       <audio ref={audioElementRef} autoPlay playsInline />
       
@@ -743,30 +742,30 @@ function App() {
             </div>
 
             {/* Conversation Core Thread Panel */}
-            // <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-950/5">
-            //   {messages.length === 0 ? (
-            //     <div className="flex flex-col items-center justify-center h-full text-center opacity-40">
-            //       <MessageSquare className="w-10 h-10 text-slate-600 mb-2" />
-            //       <p className="text-xs text-slate-400 tracking-wide">Data routing pathway clear with {selectedAgent.name}</p>
-            //     </div>
-            //   ) : (
-            //     messages.map((message) => (
-            //       <div
-            //         key={message.id}
-            //         className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-            //       >
-            //         <div className={`max-w-xl px-4 py-2.5 rounded-2xl shadow-sm border border-slate-900/10 text-sm leading-relaxed ${
-            //           message.sender === 'user' 
-            //             ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-br-none' 
-            //             : 'bg-slate-900/60 backdrop-blur-sm text-slate-200 rounded-bl-none'
-            //         }`}>
-            //           <p>{message.text}</p>
-            //           <p className="text-[9px] opacity-60 mt-1 font-mono text-right">{message.timestamp}</p>
-            //         </div>
-            //       </div>
-            //     ))
-            //   )}
-            // </div>
+            {/* <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-950/5">
+               {messages.length === 0 ? (
+                 <div className="flex flex-col items-center justify-center h-full text-center opacity-40">
+                   <MessageSquare className="w-10 h-10 text-slate-600 mb-2" />
+                   <p className="text-xs text-slate-400 tracking-wide">Data routing pathway clear with {selectedAgent.name}</p>
+                 </div>
+               ) : (
+                 messages.map((message) => (
+                   <div
+                     key={message.id}
+                     className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                   >
+                     <div className={`max-w-xl px-4 py-2.5 rounded-2xl shadow-sm border border-slate-900/10 text-sm leading-relaxed ${
+                       message.sender === 'user' 
+                         ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-br-none' 
+                         : 'bg-slate-900/60 backdrop-blur-sm text-slate-200 rounded-bl-none'
+                     }`}>
+                       <p>{message.text}</p>
+                       <p className="text-[9px] opacity-60 mt-1 font-mono text-right">{message.timestamp}</p>
+                     </div>
+                   </div>
+                 ))
+               )}
+             </div> */}
 
             {/* Conversation Core Thread Panel (Hides Text History, Keeps DB Tracking Live) */}
             <div className="flex-1 flex flex-col items-center justify-center bg-slate-950/10 p-6 relative">
