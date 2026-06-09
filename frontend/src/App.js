@@ -96,7 +96,7 @@ function App() {
 
   // Target Endpoint configuration references
   const livekitUrl = process.env.REACT_APP_LIVEKIT_URL || 'wss://voice-agent-tr1nwg9p.osingapore1b.production.livekit.cloud';
-  const gcpInsuranceWsUrl = process.env.REACT_APP_GCP_INSURANCE_WS_URL || 'wss://your-gcp-app-url.a.run.app/insurance-agent';
+  const gcpInsuranceWsUrl = process.env.REACT_APP_GCP_INSURANCE_WS_URL || 'wss://insurance-adviser-871413748960.europe-west1.run.app/insurance-agent';
 
   useEffect(() => {
     const storedToken = localStorage.getItem('jwtToken');
