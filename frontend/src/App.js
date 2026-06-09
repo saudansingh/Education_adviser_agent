@@ -20,7 +20,7 @@ import {
   Bot,
   Zap,
   Sliders,
-  Send
+  Heart
 } from 'lucide-react';
 import { RoomEvent, Room, Track } from 'livekit-client';
 import './App.css';
@@ -30,7 +30,7 @@ const agents = [
     id: 'ankur',
     name: 'Ankur',
     title: 'Education Advisor',
-    description: 'Specialized in learning strategies and career guidance',
+    description: 'Specialized in learning strategies and career guidance.',
     icon: GraduationCap,
     color: 'bg-blue-500',
     techStack: 'livekit',
@@ -47,7 +47,7 @@ const agents = [
     id: 'insurance_advisor',
     name: 'Insurance Advisor',
     title: 'Risk & Insurance Expert',
-    description: 'Specialized in ultra-concise policy advice and clear guidance',
+    description: 'Specialized in ultra-concise policy advice and clear guidance.',
     icon: ShieldAlert,
     color: 'bg-emerald-600',
     techStack: 'raw-websocket',
@@ -60,26 +60,11 @@ const agents = [
     ]
   },
   {
-    id: 'custom_ws_agent',
-    name: 'Custom WS Agent',
-    title: 'Real-time Streaming Assistant',
-    description: 'Connected via independent secure custom WebSocket server infrastructure',
+    id: 'fitness_coach',
+    name: 'Fitness Coach',
+    title: 'Personal Training & Nutrition AI',
+    description: 'Real-time workout coaching, macro tracking, and lifestyle design guidance.',
     icon: Activity,
-    color: 'bg-purple-600',
-    techStack: 'raw-websocket',
-    status: 'available',
-    stackLayers: [
-      { layer: 'Custom Network Gateway', name: 'Native WebSockets Communication Protocol', icon: Radio, tint: 'text-purple-400' },
-      { layer: 'Audio Parser Link', name: 'PCM 16kHz Byte stream processing node', icon: Sliders, tint: 'text-cyan-400' },
-      { layer: 'Intelligence Engine', name: 'Custom Backend Router Context Processing Node', icon: Cpu, tint: 'text-indigo-400' }
-    ]
-  },
-  {
-    id: 'webrtc_agent',
-    name: 'WebRTC AI Specialist',
-    title: 'Ultra Low-Latency Node',
-    description: 'Powered by native peer-to-peer browser media streams for zero-lag conversational flows',
-    icon: Cpu,
     color: 'bg-orange-600',
     techStack: 'webrtc',
     status: 'available',
@@ -111,11 +96,11 @@ function App() {
   
   const [activeModalAgent, setActiveModalAgent] = useState(null);
   
-  // Framework Core Context References
+  // Framework Core References
   const roomRef = useRef(null);
   const audioElementRef = useRef(null);
   
-  // Custom WebSocket Stream Tracker References
+  // WebSocket Core References
   const rawSocketRef = useRef(null);
   const audioContextRef = useRef(null);
   const mediaStreamRef = useRef(null);
@@ -123,17 +108,14 @@ function App() {
   const nextStartTimeRef = useRef(0);
   const isMutedRef = useRef(false);
 
-  // 🛠️ WebRTC Native Peer Connection References
+  // WebRTC Native Peer References
   const rtcPeerRef = useRef(null);
   const localStreamRef = useRef(null);
 
-  // Target Endpoint Coordinates Config
+  // Target Endpoint Coordinates (Linked directly to Vercel Env variables lookup)
   const livekitUrl = process.env.REACT_APP_LIVEKIT_URL || 'wss://voice-agent-tr1nwg9p.osingapore1b.production.livekit.cloud';
   const gcpInsuranceWsUrl = process.env.REACT_APP_GCP_INSURANCE_WS_URL || 'wss://your-gcp-app-url.a.run.app/insurance-agent';
-  const customWsAgentUrl = process.env.REACT_APP_CUSTOM_WS_AGENT_URL || 'wss://az-serenpath-voice-agent1.thankfulstone-647cf8f2.eastus2.azurecontainerapps.io';
-  
-  // 🛠️ NEW WEBRTC ENDPOINT CONFIGURATION (Use https:// or wss:// based on your signaling design)
-  const webrtcAgentUrl = process.env.REACT_APP_WEBRTC_AGENT_URL || 'YOUR_WEBRTC_BACKEND_LINK_HERE';
+  const webrtcAgentUrl = process.env.REACT_APP_WEBRTC_AGENT_URL;
 
   useEffect(() => {
     const storedToken = localStorage.getItem('jwtToken');
@@ -174,7 +156,7 @@ function App() {
       roomRef.current.disconnect();
       roomRef.current = null;
     }
-    // 2. Custom WebSockets teardown
+    // 2. WebSockets teardown
     if (rawSocketRef.current) {
       rawSocketRef.current.close();
       rawSocketRef.current = null;
@@ -193,7 +175,7 @@ function App() {
       }
       audioContextRef.current = null;
     }
-    // 3. 🛠️ WebRTC Session infrastructure teardown
+    // 3. WebRTC teardown
     if (rtcPeerRef.current) {
       rtcPeerRef.current.close();
       rtcPeerRef.current = null;
@@ -290,13 +272,6 @@ function App() {
       if (response.ok) {
         const data = await response.json();
         setToken(data.token);
-      } else if (response.status === 401 || response.status === 403 || response.status === 405) {
-        localStorage.removeItem('jwtToken');
-        localStorage.removeItem('userEmail');
-        setJwtToken('');
-        setUserEmail('');
-        setIsLoggedIn(false);
-        alert('Session expired. Please login again.');
       }
     } catch (error) {
       console.error('Error generating token:', error);
@@ -335,7 +310,6 @@ function App() {
     else if (selectedAgent.techStack === 'raw-websocket') {
       await connectToRawWebSocketAgent();
     }
-    // 🛠️ BRANCH ROUTER ROUTING FOR NATIVE WEBRTC STACK
     else if (selectedAgent.techStack === 'webrtc') {
       await connectToWebRTCAgent();
     }
@@ -403,9 +377,7 @@ function App() {
       audioContextRef.current = audioCtx;
       nextStartTimeRef.current = audioCtx.currentTime;
 
-      const targetingUrl = selectedAgent.id === 'custom_ws_agent' ? customWsAgentUrl : gcpInsuranceWsUrl;
-
-      const authenticatedWsUrl = `${targetingUrl}?email=${encodeURIComponent(userEmail)}`;
+      const authenticatedWsUrl = `${gcpInsuranceWsUrl}?email=${encodeURIComponent(userEmail)}`;
       const ws = new WebSocket(authenticatedWsUrl);
       ws.binaryType = "arraybuffer";
       rawSocketRef.current = ws;
@@ -449,25 +421,26 @@ function App() {
     }
   };
 
-  // 🛠️ NEW FUNCTION: MULTIMODAL NATIVE WEBRTC STREAM INITIALIZATION PIPELINE
   const connectToWebRTCAgent = async () => {
     try {
+      if (!webrtcAgentUrl) {
+        alert("WebRTC Backend URL configuration missing in environment settings.");
+        setConnectionStatus('disconnected');
+        return;
+      }
+      
       setConnectionStatus('connecting');
 
-      // 1. Establish peer connection using public STUN geometry routers
       const pc = new RTCPeerConnection({
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
       });
       rtcPeerRef.current = pc;
 
-      // 2. Fetch hardware microphonic stream track coordinates
       const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = localStream;
       
-      // Inject hardware tracks into peer pipeline output context
       localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
-      // 3. Connect to the outbound media streaming pipeline channel
       pc.ontrack = (event) => {
         const audioElement = audioElementRef.current;
         if (audioElement && event.streams && event.streams[0]) {
@@ -484,11 +457,9 @@ function App() {
         }
       };
 
-      // 4. Create WebRTC SDP Connection Offer
       const offer = await pc.createOffer({ offerToReceiveAudio: true });
       await pc.setLocalDescription(offer);
 
-      // 5. Send SDP capability map to backend route handler wrapper
       const response = await fetch(`${webrtcAgentUrl}?email=${encodeURIComponent(userEmail)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -496,12 +467,11 @@ function App() {
       });
 
       if (!response.ok) {
-        throw new Error(`WebRTC signaling gateway returned error status: ${response.status}`);
+        throw new Error(`WebRTC signaling gateway error: ${response.status}`);
       }
 
       const answer = await response.json();
       
-      // 6. Finalize connection handshake loop
       await pc.setRemoteDescription(new RTCSessionDescription({
         type: answer.type || 'answer',
         sdp: answer.sdp
@@ -513,7 +483,7 @@ function App() {
       isMutedRef.current = false;
 
     } catch (error) {
-      console.error('Failed to initialize local WebRTC channel handshakes:', error);
+      console.error('Failed to initialize WebRTC channel handshake:', error);
       setConnectionStatus('error');
       cleanupAllConnections();
     }
@@ -547,7 +517,7 @@ function App() {
         rawSocketRef.current.send(int16Buffer.buffer);
       };
     } catch (err) {
-      console.error("Hardware Microphone connection pipeline aborted:", err);
+      console.error("Hardware Microphone pipeline aborted:", err);
     }
   };
 
@@ -642,7 +612,6 @@ function App() {
       setIsMuted(nextMuteState);
       isMutedRef.current = nextMuteState;
     }
-    // 🛠️ MUTE HANDLER BLOCK ROUTER FOR ACTIVE WEBRTC TRACK MODIFICATIONS
     else if (selectedAgent.techStack === 'webrtc' && rtcPeerRef.current) {
       const nextMuteState = !isMuted;
       rtcPeerRef.current.getSenders().forEach(sender => {
@@ -652,42 +621,6 @@ function App() {
       });
       setIsMuted(nextMuteState);
       isMutedRef.current = nextMuteState;
-    }
-  };
-
-  const handleSendMessage = () => {
-    if (inputMessage.trim()) {
-      const newMessage = {
-        id: Date.now(),
-        text: inputMessage,
-        sender: 'user',
-        timestamp: new Date().toLocaleTimeString()
-      };
-      setMessages(prev => [...prev, newMessage]);
-      setInputMessage('');
-
-      if (selectedAgent.techStack === 'raw-websocket' && rawSocketRef.current?.readyState === WebSocket.OPEN) {
-        rawSocketRef.current.send(JSON.stringify({ text: inputMessage }));
-      } else {
-        setTimeout(() => {
-          const agentResponse = {
-            id: Date.now() + 1,
-            text: `Hello! I'm ${selectedAgent?.name}. How can I assist you with your queries?`,
-            sender: 'agent',
-            timestamp: new Date().toLocaleTimeString()
-          };
-          setMessages(prev => [...prev, agentResponse]);
-          setIsSpeaking(true);
-          setTimeout(() => setIsSpeaking(false), 3000);
-        }, 1000);
-      }
-    }
-  };
-
-  const handleIncrementAudioSourceElementCleanup = () => {
-    const audioElement = audioElementRef.current;
-    if (audioElement) {
-      audioElement.srcObject = null;
     }
   };
 
@@ -733,10 +666,6 @@ function App() {
               {isLoading ? 'Accessing Quantum Node...' : 'Establish Connection Link'}
             </button>
           </form>
-          
-          <p className="text-[11px] text-slate-500 text-center mt-5 leading-relaxed">
-            Your identity sequence maintains session history across isolated operations.
-          </p>
         </div>
       </div>
     );
@@ -748,7 +677,7 @@ function App() {
     <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-200 antialiased relative">
       <audio ref={audioElementRef} autoPlay playsInline />
       
-      {/* Frosted Translucent Sidebar */}
+      {/* Sidebar Navigation */}
       <div className="w-80 bg-slate-900/40 backdrop-blur-md border-r border-slate-900 flex flex-col z-10">
         <div className="p-6 border-b border-slate-900">
           <div className="flex items-center space-x-3">
@@ -773,9 +702,7 @@ function App() {
                 className={`p-4 rounded-xl border transition-all duration-200 cursor-pointer relative group ${
                   isSelected
                     ? 'bg-gradient-to-r from-blue-950/40 to-slate-900/60 border-blue-500/80 shadow-[0_0_15px_rgba(59,130,246,0.1)]'
-                    : agent.status === 'available'
-                    ? 'bg-slate-950/40 border-slate-900 hover:bg-slate-900/40 hover:border-slate-800'
-                    : 'bg-slate-950/10 border-slate-950 opacity-40 cursor-not-allowed'
+                    : 'bg-slate-950/40 border-slate-900 hover:bg-slate-900/40 hover:border-slate-800'
                 }`}
               >
                 <div className="flex items-start space-x-3">
@@ -786,19 +713,17 @@ function App() {
                     <div className="flex items-center justify-between">
                       <h3 className="text-white font-medium text-sm tracking-wide pr-6 truncate">{agent.name}</h3>
                       <div className="flex items-center space-x-2">
-                        
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setActiveModalAgent(agent);
                           }}
                           className="opacity-0 group-hover:opacity-100 p-1 rounded bg-slate-900/80 hover:bg-slate-800 border border-slate-800/60 text-slate-400 hover:text-blue-400 transition-all shadow-sm"
-                          title={`View ${agent.name} Architecture Specifications`}
+                          title={`View ${agent.name} Architecture`}
                         >
                           <Info className="w-3.5 h-3.5" />
                         </button>
-
-                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${agent.status === 'available' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                        <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-emerald-400" />
                       </div>
                     </div>
                     <p className="text-xs text-slate-400 font-medium">{agent.title}</p>
@@ -814,7 +739,7 @@ function App() {
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center space-x-1.5 text-slate-500">
               <User className="w-3.5 h-3.5" />
-              <span className="text-[10px] font-bold tracking-wider uppercase">Active Token Identity</span>
+              <span className="text-[10px] font-bold tracking-wider uppercase">Active Operator</span>
             </div>
             <button onClick={handleLogout} className="text-xs text-rose-400 hover:text-rose-300 transition-colors">
               Disconnect
@@ -837,11 +762,10 @@ function App() {
         </div>
       </div>
 
-      {/* Main Container Viewport */}
+      {/* Primary Video/Audio Viewport */}
       <div className="flex-1 flex flex-col z-10 relative">
         {selectedAgent ? (
           <>
-            {/* Control Strip Toolbar */}
             <div className="bg-slate-900/20 backdrop-blur-md border-b border-slate-900 p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -867,7 +791,7 @@ function App() {
                     <button
                       onClick={() => handleConnect(null)}
                       disabled={isTokenLoading || connectionStatus === 'connecting'}
-                      className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold uppercase tracking-wider rounded-xl flex items-center space-x-2 transition-all shadow-md transform active:scale-[0.98]"
+                      className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold uppercase tracking-wider rounded-xl flex items-center space-x-2 transition-all shadow-md"
                     >
                       <Phone className="w-3.5 h-3.5" />
                       <span>{isTokenLoading ? 'Syncing...' : connectionStatus === 'connecting' ? 'Linking...' : 'Connect Intercom'}</span>
@@ -875,7 +799,7 @@ function App() {
                   ) : (
                     <button
                       onClick={handleDisconnect}
-                      className="px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-semibold uppercase tracking-wider rounded-xl flex items-center space-x-2 transition-all shadow-md transform active:scale-[0.98]"
+                      className="px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-semibold uppercase tracking-wider rounded-xl flex items-center space-x-2 transition-all shadow-md"
                     >
                       <PhoneOff className="w-3.5 h-3.5" />
                       <span>Terminate Link</span>
@@ -885,15 +809,13 @@ function App() {
               </div>
             </div>
 
-            {/* Conversation Core Thread Panel */}
             <div className="flex-1 flex flex-col items-center justify-center bg-slate-950/10 p-6 relative">
-              {connectionStatus === 'connected' ? (
+              {connectionStatus === 'connected' && (
                 <div className="text-center space-y-6 flex flex-col items-center">
-                  {/* Central Pulsing Audio Core Orb */}
                   <div className="relative flex items-center justify-center">
                     <div className={`absolute w-32 h-32 rounded-full border border-emerald-500/30 animate-ping duration-1000 ${isSpeaking ? 'opacity-100' : 'opacity-0'}`} />
-                    <div className={`absolute w-28 h-28 rounded-full border border-teal-500/20 animate-pulse`} />
-                    <div className={`w-24 h-24 ${selectedAgent.color} rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.2)] border border-white/10 relative z-10`}>
+                    <div className="absolute w-28 h-28 rounded-full border border-teal-500/20 animate-pulse" />
+                    <div className={`w-24 h-24 ${selectedAgent.color} rounded-full flex items-center justify-center border border-white/10 relative z-10 shadow-xl`}>
                       {React.createElement(selectedAgent.icon, { className: `w-10 h-10 text-white ${isSpeaking ? 'animate-bounce' : ''}` })}
                     </div>
                   </div>
@@ -905,20 +827,23 @@ function App() {
                     </p>
                   </div>
                 </div>
-              ) : null}
+              )}
             </div>
           </>
-        ) : null}
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-medium tracking-wide">
+            Select an operational node from the matrix directory map to begin.
+          </div>
+        )}
       </div>
 
-      {/* Tech Stack Architecture Popup Modal */}
+      {/* Architectural Specs Modal */}
       {activeModalAgent && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800/80 rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
-            
+          <div className="bg-slate-900 border border-slate-800/80 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
             <button 
               onClick={() => setActiveModalAgent(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-950/40 hover:bg-slate-800 p-1.5 rounded-lg border border-slate-800 transition-all"
+              className="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-950/40 p-1.5 rounded-lg border border-slate-800"
             >
               <X className="w-4 h-4" />
             </button>
@@ -928,23 +853,16 @@ function App() {
                 {React.createElement(activeModalAgent.icon, { className: 'w-5 h-5 text-white' })}
               </div>
               <div>
-                <h2 className="text-md font-bold text-white tracking-wide">{activeModalAgent.name} Spec</h2>
+                <h2 className="text-md font-bold text-white tracking-wide">{activeModalAgent.name} Pipeline</h2>
                 <p className="text-xs text-slate-400 font-mono uppercase tracking-wider">Engine: {activeModalAgent.techStack}</p>
               </div>
             </div>
-
-            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-              Active engineering blueprint pipeline configured for processing real-time audio interaction.
-            </p>
 
             <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
               {activeModalAgent.stackLayers?.map((layer, index) => {
                 const LayerIcon = layer.icon;
                 return (
-                  <div 
-                    key={index} 
-                    className="flex items-start space-x-3 p-3 bg-slate-950/40 border border-slate-800/40 rounded-xl"
-                  >
+                  <div key={index} className="flex items-start space-x-3 p-3 bg-slate-950/40 border border-slate-800/40 rounded-xl">
                     <div className={`p-2 bg-slate-900 rounded-lg flex-shrink-0 border border-slate-800/50 ${layer.tint || 'text-blue-400'}`}>
                       <LayerIcon className="w-4 h-4" />
                     </div>
