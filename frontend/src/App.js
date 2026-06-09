@@ -58,6 +58,36 @@ const agents = [
       { layer: 'Context Inference Model', name: 'Google Gemini 2.5 Flash Engine Instance', icon: Cpu, tint: 'text-indigo-400' },
       { layer: 'Native Audio Synthesis Data', name: 'Gemini Live Multimodal Streams (24kHz)', icon: Zap, tint: 'text-yellow-400' }
     ]
+  },
+  {
+    id: 'custom_ws_agent',
+    name: 'Custom WS Agent',
+    title: 'Real-time Streaming Assistant',
+    description: 'Connected via independent secure custom WebSocket server infrastructure',
+    icon: Activity,
+    color: 'bg-purple-600',
+    techStack: 'raw-websocket',
+    status: 'available',
+    stackLayers: [
+      { layer: 'Custom Network Gateway', name: 'Native WebSockets Communication Protocol', icon: Radio, tint: 'text-purple-400' },
+      { layer: 'Audio Parser Link', name: 'PCM 16kHz Byte stream processing node', icon: Sliders, tint: 'text-cyan-400' },
+      { layer: 'Intelligence Engine', name: 'Custom Backend Router Context Processing Node', icon: Cpu, tint: 'text-indigo-400' }
+    ]
+  },
+  {
+    id: 'webrtc_agent',
+    name: 'WebRTC AI Specialist',
+    title: 'Ultra Low-Latency Node',
+    description: 'Powered by native peer-to-peer browser media streams for zero-lag conversational flows',
+    icon: Cpu,
+    color: 'bg-orange-600',
+    techStack: 'webrtc',
+    status: 'available',
+    stackLayers: [
+      { layer: 'Session Description Protocol', name: 'Browser WebRTC ICE / SDP Negotiation Engine', icon: Terminal, tint: 'text-orange-400' },
+      { layer: 'Media Transport Pipeline', name: 'Secure Real-time Transport Protocol (SRTP)', icon: Radio, tint: 'text-yellow-400' },
+      { layer: 'Audio Stream Delivery', name: 'Native High-Fidelity Opus Audio Codec Pipeline', icon: Volume2, tint: 'text-cyan-400' }
+    ]
   }
 ];
 
@@ -79,14 +109,13 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isTokenLoading, setIsTokenLoading] = useState(false);
   
-  // Tracks the specific agent targeted for blueprint review independently from active session
   const [activeModalAgent, setActiveModalAgent] = useState(null);
   
-  // Framework Instances Refs
+  // Framework Core Context References
   const roomRef = useRef(null);
   const audioElementRef = useRef(null);
   
-  // Custom Web Audio API Context / WebSocket Tracker references for Agent 2
+  // Custom WebSocket Stream Tracker References
   const rawSocketRef = useRef(null);
   const audioContextRef = useRef(null);
   const mediaStreamRef = useRef(null);
@@ -94,9 +123,17 @@ function App() {
   const nextStartTimeRef = useRef(0);
   const isMutedRef = useRef(false);
 
-  // Target Endpoint configuration references
+  // 🛠️ WebRTC Native Peer Connection References
+  const rtcPeerRef = useRef(null);
+  const localStreamRef = useRef(null);
+
+  // Target Endpoint Coordinates Config
   const livekitUrl = process.env.REACT_APP_LIVEKIT_URL || 'wss://voice-agent-tr1nwg9p.osingapore1b.production.livekit.cloud';
-  const gcpInsuranceWsUrl = process.env.REACT_APP_GCP_INSURANCE_WS_URL || 'wss://insurance-adviser-871413748960.europe-west1.run.app/insurance-agent';
+  const gcpInsuranceWsUrl = process.env.REACT_APP_GCP_INSURANCE_WS_URL || 'wss://your-gcp-app-url.a.run.app/insurance-agent';
+  const customWsAgentUrl = process.env.REACT_APP_CUSTOM_WS_AGENT_URL || 'wss://az-serenpath-voice-agent1.thankfulstone-647cf8f2.eastus2.azurecontainerapps.io';
+  
+  // 🛠️ NEW WEBRTC ENDPOINT CONFIGURATION (Use https:// or wss:// based on your signaling design)
+  const webrtcAgentUrl = process.env.REACT_APP_WEBRTC_AGENT_URL || 'YOUR_WEBRTC_BACKEND_LINK_HERE';
 
   useEffect(() => {
     const storedToken = localStorage.getItem('jwtToken');
@@ -132,10 +169,12 @@ function App() {
   }, []);
 
   const cleanupAllConnections = () => {
+    // 1. LiveKit teardown
     if (roomRef.current) {
       roomRef.current.disconnect();
       roomRef.current = null;
     }
+    // 2. Custom WebSockets teardown
     if (rawSocketRef.current) {
       rawSocketRef.current.close();
       rawSocketRef.current = null;
@@ -154,6 +193,16 @@ function App() {
       }
       audioContextRef.current = null;
     }
+    // 3. 🛠️ WebRTC Session infrastructure teardown
+    if (rtcPeerRef.current) {
+      rtcPeerRef.current.close();
+      rtcPeerRef.current = null;
+    }
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+    }
+    
     nextStartTimeRef.current = 0;
     setAudioTrack(null);
     setIsSpeaking(false);
@@ -286,6 +335,10 @@ function App() {
     else if (selectedAgent.techStack === 'raw-websocket') {
       await connectToRawWebSocketAgent();
     }
+    // 🛠️ BRANCH ROUTER ROUTING FOR NATIVE WEBRTC STACK
+    else if (selectedAgent.techStack === 'webrtc') {
+      await connectToWebRTCAgent();
+    }
   };
 
   const connectToLiveKit = async (targetToken) => {
@@ -350,7 +403,9 @@ function App() {
       audioContextRef.current = audioCtx;
       nextStartTimeRef.current = audioCtx.currentTime;
 
-      const authenticatedWsUrl = `${gcpInsuranceWsUrl}?email=${encodeURIComponent(userEmail)}`;
+      const targetingUrl = selectedAgent.id === 'custom_ws_agent' ? customWsAgentUrl : gcpInsuranceWsUrl;
+
+      const authenticatedWsUrl = `${targetingUrl}?email=${encodeURIComponent(userEmail)}`;
       const ws = new WebSocket(authenticatedWsUrl);
       ws.binaryType = "arraybuffer";
       rawSocketRef.current = ws;
@@ -378,7 +433,7 @@ function App() {
       };
 
       ws.onerror = (err) => {
-        console.error("GCP WebSocket channel dropped:", err);
+        console.error("WebSocket channel dropped:", err);
         setConnectionStatus('error');
       };
 
@@ -389,8 +444,78 @@ function App() {
       };
 
     } catch (error) {
-      console.error('Failed to construct Custom GCP session pipeline:', error);
+      console.error('Failed to construct Custom session pipeline:', error);
       setConnectionStatus('error');
+    }
+  };
+
+  // 🛠️ NEW FUNCTION: MULTIMODAL NATIVE WEBRTC STREAM INITIALIZATION PIPELINE
+  const connectToWebRTCAgent = async () => {
+    try {
+      setConnectionStatus('connecting');
+
+      // 1. Establish peer connection using public STUN geometry routers
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      });
+      rtcPeerRef.current = pc;
+
+      // 2. Fetch hardware microphonic stream track coordinates
+      const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStreamRef.current = localStream;
+      
+      // Inject hardware tracks into peer pipeline output context
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+      // 3. Connect to the outbound media streaming pipeline channel
+      pc.ontrack = (event) => {
+        const audioElement = audioElementRef.current;
+        if (audioElement && event.streams && event.streams[0]) {
+          audioElement.srcObject = event.streams[0];
+          setIsSpeaking(true);
+        }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'closed') {
+          setIsConnected(false);
+          setConnectionStatus('disconnected');
+          setIsSpeaking(false);
+        }
+      };
+
+      // 4. Create WebRTC SDP Connection Offer
+      const offer = await pc.createOffer({ offerToReceiveAudio: true });
+      await pc.setLocalDescription(offer);
+
+      // 5. Send SDP capability map to backend route handler wrapper
+      const response = await fetch(`${webrtcAgentUrl}?email=${encodeURIComponent(userEmail)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sdp: pc.localDescription.sdp, type: pc.localDescription.type })
+      });
+
+      if (!response.ok) {
+        throw new Error(`WebRTC signaling gateway returned error status: ${response.status}`);
+      }
+
+      const answer = await response.json();
+      
+      // 6. Finalize connection handshake loop
+      await pc.setRemoteDescription(new RTCSessionDescription({
+        type: answer.type || 'answer',
+        sdp: answer.sdp
+      }));
+
+      setIsConnected(true);
+      setConnectionStatus('connected');
+      setIsMuted(false);
+      isMutedRef.current = false;
+
+    } catch (error) {
+      console.error('Failed to initialize local WebRTC channel handshakes:', error);
+      setConnectionStatus('error');
+      cleanupAllConnections();
     }
   };
 
@@ -488,7 +613,7 @@ function App() {
     if (!jwtToken) return;
     try {
       const API_URL = process.env.REACT_APP_API_URL || 'https://ankur-280807492599.asia-south2.run.app';
-      const response = await fetch(`${URL}/chat-summary`, {
+      const response = await fetch(`${API_URL}/chat-summary`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -514,6 +639,17 @@ function App() {
       isMutedRef.current = nextMuteState;
     } else if (selectedAgent.techStack === 'raw-websocket') {
       const nextMuteState = !isMuted;
+      setIsMuted(nextMuteState);
+      isMutedRef.current = nextMuteState;
+    }
+    // 🛠️ MUTE HANDLER BLOCK ROUTER FOR ACTIVE WEBRTC TRACK MODIFICATIONS
+    else if (selectedAgent.techStack === 'webrtc' && rtcPeerRef.current) {
+      const nextMuteState = !isMuted;
+      rtcPeerRef.current.getSenders().forEach(sender => {
+        if (sender.track && sender.track.kind === 'audio') {
+          sender.track.enabled = !nextMuteState;
+        }
+      });
       setIsMuted(nextMuteState);
       isMutedRef.current = nextMuteState;
     }
@@ -545,6 +681,13 @@ function App() {
           setTimeout(() => setIsSpeaking(false), 3000);
         }, 1000);
       }
+    }
+  };
+
+  const handleIncrementAudioSourceElementCleanup = () => {
+    const audioElement = audioElementRef.current;
+    if (audioElement) {
+      audioElement.srcObject = null;
     }
   };
 
@@ -644,7 +787,6 @@ function App() {
                       <h3 className="text-white font-medium text-sm tracking-wide pr-6 truncate">{agent.name}</h3>
                       <div className="flex items-center space-x-2">
                         
-                        {/* Info button inside individual agent cards */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -774,7 +916,6 @@ function App() {
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800/80 rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
             
-            {/* Close Button */}
             <button 
               onClick={() => setActiveModalAgent(null)}
               className="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-950/40 hover:bg-slate-800 p-1.5 rounded-lg border border-slate-800 transition-all"
@@ -782,7 +923,6 @@ function App() {
               <X className="w-4 h-4" />
             </button>
 
-            {/* Header Description */}
             <div className="flex items-center space-x-3 mb-5">
               <div className={`w-10 h-10 ${activeModalAgent.color} rounded-xl flex items-center justify-center`}>
                 {React.createElement(activeModalAgent.icon, { className: 'w-5 h-5 text-white' })}
@@ -797,7 +937,6 @@ function App() {
               Active engineering blueprint pipeline configured for processing real-time audio interaction.
             </p>
 
-            {/* Architecture Stack Layers Mapper */}
             <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
               {activeModalAgent.stackLayers?.map((layer, index) => {
                 const LayerIcon = layer.icon;
