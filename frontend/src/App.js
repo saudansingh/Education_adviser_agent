@@ -28,7 +28,7 @@ import './App.css';
 const agents = [
   {
     id: 'ankur',
-    name: 'Ankur',
+    name: 'John',
     title: 'Education Advisor',
     description: 'Specialized in learning strategies and career guidance.',
     icon: GraduationCap,
@@ -44,8 +44,8 @@ const agents = [
     ]
   },
   {
-    id: 'insurance_advisor',
-    name: 'Insurance Advisor',
+    id: 'Insurance Adviser',
+    name: 'Robert',
     title: 'Risk & Insurance Expert',
     description: 'Specialized in ultra-concise policy advice and clear guidance.',
     icon: ShieldAlert,
@@ -60,10 +60,10 @@ const agents = [
     ]
   },
   {
-    id: 'fitness_coach',
-    name: 'Fitness Coach',
-    title: 'Personal Training & Nutrition AI',
-    description: 'Real-time workout coaching, macro tracking, and lifestyle design guidance.',
+    id: 'Rose',
+    name: 'Rose',
+    title: 'Personal agent for multi-talks',
+    description: 'Ask what you want.',
     icon: Activity,
     color: 'bg-orange-600',
     techStack: 'webrtc',
