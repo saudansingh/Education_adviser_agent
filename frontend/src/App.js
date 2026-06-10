@@ -460,22 +460,45 @@ function App() {
       const offer = await pc.createOffer({ offerToReceiveAudio: true });
       await pc.setLocalDescription(offer);
 
-      const response = await fetch(`${webrtcAgentUrl}?email=${encodeURIComponent(userEmail)}`, {
+      // 1. Step One: Fetch the ephemeral token and Azure URL from your backend relay
+      const tokenResponse = await fetch(`${webrtcAgentUrl}?email=${encodeURIComponent(userEmail)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sdp: pc.localDescription.sdp, type: pc.localDescription.type })
+        body: JSON.stringify({ user_id: `user_${Date.now()}` }) 
+      });
+      
+      if (!tokenResponse.ok) {
+        throw new Error(`Failed to get token from backend: ${tokenResponse.status}`);
+      }
+      
+      const tokenData = await tokenResponse.json();
+      const { token, webrtc_url } = tokenData; // Safely extract Azure's credentials
+      
+      // 2. Step Two: Send the actual WebRTC voice offer directly to Microsoft Azure's server
+      const response = await fetch(webrtc_url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/sdp'
+        },
+        body: pc.localDescription.sdp // Azure expects raw text configuration, not JSON
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Azure WebRTC connection failed: ${response.status}`);
+      }
+      
+      const answerSdp = await response.text(); // Azure responds with raw SDP text starting with "v="
+      
+      // 3. Step Three: Pass the correct Azure voice configuration to the browser
+      await pc.setRemoteDescription({
+        type: 'answer',
+        sdp: answerSdp
       });
 
-      if (!response.ok) {
-        throw new Error(`WebRTC signaling gateway error: ${response.status}`);
-      }
 
-      const answer = await response.json();
+
       
-      await pc.setRemoteDescription(new RTCSessionDescription({
-        type: answer.type || 'answer',
-        sdp: answer.sdp
-      }));
 
       setIsConnected(true);
       setConnectionStatus('connected');
