@@ -512,37 +512,60 @@ function App() {
     }
   };
 
-  const setupBrowserMicrophonePipeline = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaStreamRef.current = stream;
+ const setupBrowserMicrophonePipeline = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaStreamRef.current = stream;
 
-      const source = audioContextRef.current.createMediaStreamSource(stream);
-      const processor = audioContextRef.current.createScriptProcessor(2048, 1, 1);
-      
-      source.connect(processor);
-      processor.connect(audioContextRef.current.destination);
-      scriptProcessorRef.current = processor;
+    const audioCtx = audioContextRef.current;
+    const source = audioCtx.createMediaStreamSource(stream);
 
-      processor.onaudioprocess = (e) => {
-        if (!rawSocketRef.current || rawSocketRef.current.readyState !== WebSocket.OPEN) return;
-        if (isMutedRef.current) return;
-
-        const inputBuffer = e.inputBuffer;
-        const float32Data = inputBuffer.getChannelData(0);
-
-        const int16Buffer = new Int16Array(float32Data.length);
-        for (let i = 0; i < float32Data.length; i++) {
-          let sample = Math.max(-1, Math.min(1, float32Data[i]));
-          int16Buffer[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+    // 1. Define the AudioWorklet processor code as a Blob
+    const workletCode = `
+      class PCMProcessor extends AudioWorkletProcessor {
+        process(inputs, outputs, parameters) {
+          const input = inputs[0];
+          if (input.length > 0) {
+            const float32Data = input[0];
+            this.port.postMessage(float32Data);
+          }
+          return true;
         }
+      }
+      registerProcessor('pcm-processor', PCMProcessor);
+    `;
 
-        rawSocketRef.current.send(int16Buffer.buffer);
-      };
-    } catch (err) {
-      console.error("Hardware Microphone pipeline aborted:", err);
-    }
-  };
+    const blob = new Blob([workletCode], { type: 'application/javascript' });
+    const workletUrl = URL.createObjectURL(blob);
+
+    // 2. Add the module to the AudioContext
+    await audioCtx.audioWorklet.addModule(workletUrl);
+    const pcmWorkerNode = new AudioWorkletNode(audioCtx, 'pcm-processor');
+
+    // 3. Listen for audio chunks from the worklet thread
+    pcmWorkerNode.port.onmessage = (e) => {
+      if (!rawSocketRef.current || rawSocketRef.current.readyState !== WebSocket.OPEN) return;
+      if (isMutedRef.current) return;
+
+      const float32Data = e.data;
+      const int16Buffer = new Int16Array(float32Data.length);
+
+      for (let i = 0; i < float32Data.length; i++) {
+        let sample = Math.max(-1, Math.min(1, float32Data[i]));
+        int16Buffer[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+      }
+
+      rawSocketRef.current.send(int16Buffer.buffer);
+    };
+
+    source.connect(pcmWorkerNode);
+    pcmWorkerNode.connect(audioCtx.destination);
+    scriptProcessorRef.current = pcmWorkerNode; // Save reference for cleanup
+
+  } catch (err) {
+    console.error("Hardware Microphone pipeline aborted:", err);
+  }
+};
 
   const playRawAudioBufferChunk = (arrayBuffer) => {
     const audioCtx = audioContextRef.current;
