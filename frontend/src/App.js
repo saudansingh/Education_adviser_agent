@@ -114,7 +114,7 @@ function App() {
 
   // Target Endpoint Coordinates (Linked directly to Vercel Env variables lookup)
   const livekitUrl = process.env.REACT_APP_LIVEKIT_URL || 'wss://voice-agent-tr1nwg9p.osingapore1b.production.livekit.cloud';
-  const gcpInsuranceWsUrl = process.env.REACT_APP_GCP_INSURANCE_WS_URL || 'wss://insurance-adviser-963004223905.asia-south2.run.app';
+  const gcpInsuranceWsUrl = process.env.REACT_APP_GCP_INSURANCE_WS_URL || 'wss://insurance-adviser-963004223905.asia-south2.run.app/insurance-agent';
   const webrtcAgentUrl = process.env.REACT_APP_WEBRTC_AGENT_URL;
 
   useEffect(() => {
