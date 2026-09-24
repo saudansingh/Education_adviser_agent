@@ -28,7 +28,7 @@ import './App.css';
 const agents = [
   {
     id: 'ankur',
-    name: 'John',
+    name: 'Ankur',
     title: 'Education Advisor',
     description: 'Specialized in learning strategies and career guidance.',
     icon: GraduationCap,
