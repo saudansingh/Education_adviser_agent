@@ -370,7 +370,7 @@ function App() {
     }
   };
 
- const connectToRawWebSocketAgent = async () => {
+  const connectToRawWebSocketAgent = async () => {
     try {
       setConnectionStatus('connecting');
 
@@ -592,8 +592,8 @@ function App() {
 
   } catch (err) {
     console.error("Hardware Microphone pipeline aborted:", err);
-  }
-};
+    }
+  };
 
   const playRawAudioBufferChunk = (arrayBuffer) => {
     const audioCtx = audioContextRef.current;
