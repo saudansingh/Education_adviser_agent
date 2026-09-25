@@ -59,21 +59,7 @@ const agents = [
       { layer: 'Native Audio Synthesis Data', name: 'Gemini Live Multimodal Streams (24kHz)', icon: Zap, tint: 'text-yellow-400' }
     ]
   },
-  {
-    id: 'Rose',
-    name: 'Rose',
-    title: 'Personal agent for multi-talks',
-    description: 'Ask what you want.',
-    icon: Activity,
-    color: 'bg-orange-600',
-    techStack: 'webrtc',
-    status: 'available',
-    stackLayers: [
-      { layer: 'Session Description Protocol', name: 'Browser WebRTC ICE / SDP Negotiation Engine', icon: Terminal, tint: 'text-orange-400' },
-      { layer: 'Media Transport Pipeline', name: 'Secure Real-time Transport Protocol (SRTP)', icon: Radio, tint: 'text-yellow-400' },
-      { layer: 'Audio Stream Delivery', name: 'Native High-Fidelity Opus Audio Codec Pipeline', icon: Volume2, tint: 'text-cyan-400' }
-    ]
-  }
+  
 ];
 
 function App() {
