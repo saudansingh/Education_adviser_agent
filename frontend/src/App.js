@@ -107,6 +107,7 @@ function App() {
   const scriptProcessorRef = useRef(null);
   const nextStartTimeRef = useRef(0);
   const isMutedRef = useRef(false);
+  const isMutedRef = useRef(false);
 
   // WebRTC Native Peer References
   const rtcPeerRef = useRef(null);
@@ -369,7 +370,7 @@ function App() {
     }
   };
 
-  const connectToRawWebSocketAgent = async () => {
+ const connectToRawWebSocketAgent = async () => {
     try {
       setConnectionStatus('connecting');
 
@@ -377,7 +378,11 @@ function App() {
       audioContextRef.current = audioCtx;
       nextStartTimeRef.current = audioCtx.currentTime;
 
-      const authenticatedWsUrl = `${gcpInsuranceWsUrl}?email=${encodeURIComponent(userEmail)}`;
+      // Fallback points directly to us-east1 if environment variable is missing
+      const defaultUsEast1Url = 'wss://insurance-adviser-963004223905.us-east1.run.app/ws/chat';
+      const baseUrl = process.env.REACT_APP_GCP_INSURANCE_WS_URL || defaultUsEast1Url;
+      const authenticatedWsUrl = `\({baseUrl}?email=\){encodeURIComponent(userEmail)}`;
+
       const ws = new WebSocket(authenticatedWsUrl);
       ws.binaryType = "arraybuffer";
       rawSocketRef.current = ws;
@@ -395,7 +400,12 @@ function App() {
           const payload = JSON.parse(event.data);
           if (payload.text) {
             appendStreamingAgentText(payload.text);
-          } else if (payload.type === 'interrupt') {
+          } else if (payload.type === 'interrupt' || payload.type === 'interrupted') {
+            // Stop playing audio sources instantly on interruption signal
+            activeSourcesRef.current.forEach(source => {
+              try { source.stop(); } catch (e) {}
+            });
+            activeSourcesRef.current = [];
             nextStartTimeRef.current = audioCtx.currentTime; 
             setIsSpeaking(false);
           }
@@ -420,7 +430,6 @@ function App() {
       setConnectionStatus('error');
     }
   };
-
   const connectToWebRTCAgent = async () => {
     try {
       if (!webrtcAgentUrl) {
@@ -512,22 +521,43 @@ function App() {
     }
   };
 
- const setupBrowserMicrophonePipeline = async () => {
+  const setupBrowserMicrophonePipeline = async () => {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Enable Hardware Echo Cancellation & Noise Suppression
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        sampleRate: 16000,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
+    });
     mediaStreamRef.current = stream;
 
     const audioCtx = audioContextRef.current;
     const source = audioCtx.createMediaStreamSource(stream);
 
-    // 1. Define the AudioWorklet processor code as a Blob
+    // Buffer audio into 100ms chunks (1600 samples at 16kHz) to eliminate 125 FPS packet flooding
     const workletCode = `
       class PCMProcessor extends AudioWorkletProcessor {
-        process(inputs, outputs, parameters) {
+        constructor() {
+          super();
+          this.buffer = new Float32Array(1600); // 100ms chunk at 16kHz
+          this.bufferIndex = 0;
+        }
+
+        process(inputs) {
           const input = inputs[0];
-          if (input.length > 0) {
-            const float32Data = input[0];
-            this.port.postMessage(float32Data);
+          if (input && input.length > 0) {
+            const channel = input[0];
+            for (let i = 0; i < channel.length; i++) {
+              this.buffer[this.bufferIndex++] = channel[i];
+              if (this.bufferIndex >= 1600) {
+                this.port.postMessage(this.buffer.slice(0, 1600));
+                this.bufferIndex = 0;
+              }
+            }
           }
           return true;
         }
@@ -538,11 +568,9 @@ function App() {
     const blob = new Blob([workletCode], { type: 'application/javascript' });
     const workletUrl = URL.createObjectURL(blob);
 
-    // 2. Add the module to the AudioContext
     await audioCtx.audioWorklet.addModule(workletUrl);
     const pcmWorkerNode = new AudioWorkletNode(audioCtx, 'pcm-processor');
 
-    // 3. Listen for audio chunks from the worklet thread
     pcmWorkerNode.port.onmessage = (e) => {
       if (!rawSocketRef.current || rawSocketRef.current.readyState !== WebSocket.OPEN) return;
       if (isMutedRef.current) return;
@@ -559,8 +587,8 @@ function App() {
     };
 
     source.connect(pcmWorkerNode);
-    pcmWorkerNode.connect(audioCtx.destination);
-    scriptProcessorRef.current = pcmWorkerNode; // Save reference for cleanup
+    // REMOVED: pcmWorkerNode.connect(audioCtx.destination) -> Prevents feedback loop into mic
+    scriptProcessorRef.current = pcmWorkerNode;
 
   } catch (err) {
     console.error("Hardware Microphone pipeline aborted:", err);
@@ -588,8 +616,12 @@ function App() {
     bufferSource.start(startTime);
     nextStartTimeRef.current = startTime + audioBuffer.duration;
 
+    // Track active buffer source for instant interruption flushing
+    activeSourcesRef.current.push(bufferSource);
+
     setIsSpeaking(true);
     bufferSource.onended = () => {
+      activeSourcesRef.current = activeSourcesRef.current.filter(s => s !== bufferSource);
       if (audioCtx.currentTime >= nextStartTimeRef.current - 0.05) {
         setIsSpeaking(false);
       }
