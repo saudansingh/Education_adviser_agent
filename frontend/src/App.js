@@ -107,7 +107,7 @@ function App() {
   const scriptProcessorRef = useRef(null);
   const nextStartTimeRef = useRef(0);
   const isMutedRef = useRef(false);
-  const isMutedRef = useRef(false);
+  const activeSourcesRef = useRef([]);
 
   // WebRTC Native Peer References
   const rtcPeerRef = useRef(null);
