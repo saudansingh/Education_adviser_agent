@@ -179,7 +179,7 @@ function App() {
 
   const loadChatHistory = async (token) => {
     try {
-      const API_URL = process.env.REACT_APP_API_URL || 'https://ankur-280807492599.asia-south2.run.app';
+      const API_URL = process.env.REACT_APP_API_URL || 'https://agents-939072091876.asia-south2.run.app';
       const response = await fetch(`${API_URL}/chat-history`, {
         method: 'GET',
         headers: {
@@ -207,7 +207,7 @@ function App() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const API_URL = process.env.REACT_APP_API_URL || 'https://ankur-280807492599.asia-south2.run.app';
+      const API_URL = process.env.REACT_APP_API_URL || 'https://agents-939072091876.asia-south2.run.app';
       const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -246,7 +246,7 @@ function App() {
     if (!jwtToken) return;
     setIsTokenLoading(true);
     try {
-      const API_URL = process.env.REACT_APP_API_URL || 'https://ankur-280807492599.asia-south2.run.app';
+      const API_URL = process.env.REACT_APP_API_URL || 'https://agents-939072091876.asia-south2.run.app';
       const response = await fetch(`${API_URL}/token`, {
         method: 'POST',
         headers: {
