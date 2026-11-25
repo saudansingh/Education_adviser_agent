@@ -365,7 +365,7 @@ function App() {
       nextStartTimeRef.current = audioCtx.currentTime;
 
       // Fallback points directly to us-east1 if environment variable is missing
-      const defaultUsEast1Url = 'wss://insurance-adviser-963004223905.us-east1.run.app/ws/chat';
+      const defaultUsEast1Url = 'wss://insurance-adviser-939072091876.asia-south2.run.app/ws/chat';
       const baseUrl = process.env.REACT_APP_GCP_INSURANCE_WS_URL || defaultUsEast1Url;
       const authenticatedWsUrl = baseUrl + '?email=' + encodeURIComponent(userEmail);
 
